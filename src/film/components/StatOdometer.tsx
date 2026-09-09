@@ -1,7 +1,7 @@
 import React from 'react';
 import {interpolate} from 'remotion';
 import {FILM_COLORS, FILM_FONT, FILM_MONO} from '../theme';
-import {morphProgress, premiumSpring} from '../springs';
+import {morphProgress, withOvershoot, OFFSCRIPT_FAST} from '../springs';
 
 type Stat = {value: string; label: string};
 
@@ -46,7 +46,7 @@ export const StatOdometer: React.FC<Props> = ({
 
   const shiftProgress =
     stage < stats.length - 1
-      ? morphProgress(frame, startFrame + stage * stepFrames + holdFrames, startFrame + (stage + 1) * stepFrames, fps, premiumSpring)
+      ? morphProgress(frame, startFrame + stage * stepFrames + holdFrames, startFrame + (stage + 1) * stepFrames, fps, OFFSCRIPT_FAST)
       : 0;
 
   const offset = -(stage + shiftProgress) * slotHeight;
@@ -72,7 +72,7 @@ export const StatOdometer: React.FC<Props> = ({
           const scale = isOutgoing
             ? interpolate(shiftProgress, [0, 1], [1, 0.92])
             : isIncoming
-              ? interpolate(shiftProgress, [0, 1], [1.08, 1])
+              ? withOvershoot(shiftProgress, 1.08, 1, 0.2)
               : 1;
           const blockBlur = isOutgoing
             ? interpolate(shiftProgress, [0, 1], [0, 3])

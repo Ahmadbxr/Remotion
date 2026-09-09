@@ -1,6 +1,7 @@
 import React from 'react';
 import {interpolate} from 'remotion';
 import {FILM_COLORS, FILM_FONT} from '../theme';
+import {withOvershoot} from '../springs';
 
 type Line = {text: string; color?: string};
 
@@ -63,11 +64,15 @@ export const MaskText: React.FC<Props> = ({
         const line: Line = typeof raw === 'string' ? {text: raw} : raw;
         const localEnter = Math.min(Math.max(enter * n - i * staggerFraction, 0), 1);
 
+        // Text gets less overshoot than icons — a couple of px of drift and
+        // a fraction of a percent of scale, never a bouncy fly-in: the mask
+        // reveal itself stays the dominant motion, this just keeps its
+        // landing from reading as a hard linear stop.
         const translateY =
-          interpolate(localEnter, [0, 1], [rowHeight, 0]) + interpolate(exit, [0, 1], [0, -14]);
+          withOvershoot(localEnter, rowHeight, 0, 0.02) + interpolate(exit, [0, 1], [0, -14]);
         const blur = interpolate(localEnter, [0, 1], [6, 0]) + interpolate(exit, [0, 1], [0, 7]);
         const opacity = interpolate(localEnter, [0, 1], [0, 1]) * interpolate(exit, [0, 1], [1, 0]);
-        const scale = interpolate(localEnter, [0, 1], [0.97, 1]);
+        const scale = withOvershoot(localEnter, 0.985, 1, 0.6);
         const tracking = interpolate(localEnter, [0, 1], [letterSpacingFrom, letterSpacingTo]);
 
         // Flexbox's `justify-content: center` applies "safe alignment" when

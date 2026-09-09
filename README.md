@@ -63,16 +63,52 @@ instead of pairing with a "next" service.
   outgoing/incoming numbers scale and blur individually for a fast, fluid
   handoff.
 - `src/film/components/FlipTransition.tsx` / `ScrollTransition.tsx` — the
-  two newer vocabulary pieces.
+  two newer vocabulary pieces. Flip now moves rotation, translateY and
+  scale together (never rotation alone) and both carry one controlled
+  overshoot via `withOvershoot`; scroll's incoming travel follows
+  `scrollSettle`, a fixed 5-point curve (fast 0-85%, one small overshoot,
+  soft correction into a hard 0) modeled directly on the film's reference
+  y-position example.
 - `src/film/components/` — `RedDot`, `MorphingPill`, `ContentCard`,
   `CameraFrame`, `EditingTimeline`, `AnalyticsGraph`, `MorphTransition`
   (recolored for the light palette).
-- `src/film/springs.ts` — one named motion system: `premiumSpring` /
-  `gentleSpring` / `cameraSpring` / `textSpring` / `flipSpring`, tuned to
-  the spec's damping/stiffness targets (ratio ~1.1-1.7: snappy onset, no
-  bounce), plus `morphProgress` and `staggerProgress`.
+- `src/film/springs.ts` — the named motion language every animation reaches
+  for: `OFFSCRIPT_FAST` (cards/UI), `OFFSCRIPT_SMOOTH` (typography, quiet
+  holds — no bounce), `OFFSCRIPT_OVERSHOOT` (icon builds/lock-ins),
+  `OFFSCRIPT_SCROLL`, `OFFSCRIPT_FLIP`, and `OFFSCRIPT_SETTLE` (camera
+  pushes, the final logo — no bounce), each tuned to the spec's per-category
+  damping/stiffness/mass ranges. Most sit underdamped (ratio ~0.72-0.92) for
+  one small single-bounce overshoot; SMOOTH and SETTLE land at/past critical
+  on purpose, for the few places a bounce would read as noise. Also exports
+  `morphProgress`/`staggerProgress` (the clamped 0→1 timing driver — kept
+  clamped because it also gates stage-selection and opacity logic) and two
+  value-shaping helpers used on top of it: `withOvershoot` (a generic
+  directionally-consistent single-overshoot curve — growth overshoots
+  larger, upward motion overshoots further up, by construction) and
+  `scrollSettle` (the scroll-specific 5-point settle curve).
 - `src/film/theme.ts` — colors, font stacks, and `TIMELINE`, the single
   source of frame markers the whole film reads from.
+- `scripts/synth-sfx.py` — generates the entire sound library from scratch
+  (numpy sine/harmonic synthesis + FFT band-limited noise, no sampled or
+  licensed audio) into `public/sfx/`. Apple is a quality reference only;
+  nothing here is or resembles an actual Apple system sound.
+
+**Sound design**: a fixed 7-sound library, each cue tied to the exact frame
+of the motion event it belongs to (never one-off custom sounds per moment):
+`scroll-air` / `flip-air` (broadband air that starts 2-4 frames before the
+visible movement, peaks at max velocity, a subtle tonal cue right at the
+overshoot, fading to silence at settle), `morph-tone` (a quiet sine wash
+under blur/scale crossfades), `soft-settle` (every hero-shape settle),
+`icon-lock` (one clean tonal ping per service, exactly on its
+completion-overshoot frame — CREATOR included, on the same timing as every
+other icon, now that its centering is deterministic), three `metric-pulse`
+variants (one soft one-shot per stat — no counter-tick, no casino chime),
+and `offscript-signature` (the film's one loudest, most deliberate sonic
+moment: a low harmonic swell during the line's transformation, a soft
+impact the instant the logo is fully visible, one clean high harmonic, then
+true silence for the multi-second hold that follows). Wired into the
+timeline in `OffscriptFilm.tsx`'s `SFX_CUES` list via `<Sequence from=…>`
++ `<Audio>` — no continuous music bed exists yet to duck around.
 
 **Real bugs found and fixed in this pass**:
 - `overflow: hidden` on a flex container with `justify-content: center`
@@ -86,6 +122,15 @@ instead of pairing with a "next" service.
   offset was applied on top of a *different* baseline, staggering them
   instead of fanning out from one anchor. Fixed by setting `top: 0; left: 0`
   explicitly.
+- CREATOR's fan-cards were still visibly off-center after that fix — a
+  *different* bug: the offset math (`restX = offset*72 - 50`) centered the
+  three-card cluster's bounding box at local x=0, the container's left
+  edge, not its true center at width/2. Fixed by deriving every rest
+  position from the container's actual center and each card's own
+  half-width/height (`centerX - CARD_W/2 + offset*FAN_SPACING`, etc.) —
+  deterministic geometry instead of hand-picked pixel offsets. The
+  completion "lock-in" overshoot (shared by every icon via `CardFace`) also
+  scales the whole cluster around that same true center.
 - BETREUUNG's label had no exit animation, so as the hero card collapsed
   and traveled toward the label's screen position (to become the stats
   rule), its fading red accent visually crossed the still-fully-opaque
@@ -97,6 +142,15 @@ instead of pairing with a "next" service.
   finished flipping/scrolling in but hadn't started assembling yet: a blank
   card. Fixed by anchoring build to the transition's own start, so the icon
   is already assembling itself while it arrives.
+- Every service-to-service label transition (flip, scroll, and morph alike)
+  crossfaded the outgoing and incoming words through a wide overlapping
+  opacity window (e.g. outgoing 1→0 over 0-70%, incoming 0→1 over 30-100%)
+  — for roughly 40% of the transition, two different German words sat at
+  full-ish opacity in the same position, reading as garbled double-exposure
+  text rather than a clean swap. Fixed so the outgoing word is fully gone
+  (opacity 0) by the transition's midpoint and the incoming word doesn't
+  start appearing until then — never simultaneously legible — with blur
+  peaking right at that midpoint crossover instead of at the endpoints.
 
 ## Usage
 
@@ -111,6 +165,9 @@ npx remotion render src/index.ts OffscriptFilm out/offscript-film.mp4
 
 # Render a single still frame
 npx remotion still src/index.ts OffscriptFilm out/frame.png --frame=500
+
+# Regenerate the sound-design library (public/sfx/) after a timing change
+python3 scripts/synth-sfx.py
 ```
 
 If no system Chrome/Chromium is found automatically, pass one explicitly:
