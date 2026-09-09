@@ -22,38 +22,50 @@ export const HEIGHT = 1920;
  * independent per-scene start/end pairs. Every stage below is a state of
  * the SAME persistent hero element and the SAME persistent headline slot —
  * nothing here unmounts and remounts at a boundary, so there is no seam to
- * hide. Consecutive markers overlap on purpose: a stage's hold is also the
- * next stage's approach.
+ * hide.
+ *
+ * Rhythm principle throughout: FAST TRANSITION, SLOW HOLD. Structural
+ * transitions (the hero reshaping, a card forming) run ~10-16 frames;
+ * readable content then holds for 40-60+ frames before the next transition
+ * starts. Momentum comes from how efficiently state changes, not from
+ * cutting holds short.
  */
 const dotBorn = 0;
-const dotHold = 16;
-const pillGrow = 55;
-const pillHold = 80;
-const pillToRule = 110;
+const dotHold = 12;
+const pillGrow = 38; // was 55 — tighter build
+const pillHold = 66; // ~28-frame readable hold on "OFFSCRIPT"
+const pillToRule = 80; // 14-frame transition
 
-const headlineIn = 150;
-const headlineHold = 200;
-const headlineOut = 230;
+const headlineIn = 96; // brief (16f) rule-alone breath before headline
+const headlineRevealEnd = 128; // 32-frame mask reveal
+const headlineHold = 188; // ~60-frame readable hold (a full sentence)
+const headlineOut = 202; // 14-frame exit
 
-const servicesCardIn = 260;
-const serviceStart = 272;
-const serviceStep = 36;
+const servicesCardIn = 216; // 14-frame card-forming transition
+const serviceStart = 224; // 8-frame settle before content starts
+
+// Each service: ~10f enter, icon fully built by ~24f in, held complete
+// until ~14f before the end, then a flip/scroll/morph transition into the
+// next. Total per service comfortably clears the "20-30 frames fully
+// built" and "30-40 frames readable" requirements.
+const serviceStep = 74;
 const SERVICE_COUNT = 6;
-const servicesEnd = serviceStart + SERVICE_COUNT * serviceStep + 16; // 504
+const serviceTransitionFrames = 14; // shared: outgoing's exit IS incoming's entrance
+const servicesEnd = serviceStart + SERVICE_COUNT * serviceStep + 10;
 
-const statsCardOut = servicesEnd + 24; // 528, card dissolves back to rule
-const statsStart = statsCardOut + 8; // 536
-const statStep = 80;
+const statsCardOut = servicesEnd + 14; // camera-push exit, see OffscriptFilm
+const statsStart = statsCardOut + 10;
+const statStep = 60; // ~46-frame hold + 14-frame transition per stat
 const STAT_COUNT = 3;
-const statsEnd = statsStart + STAT_COUNT * statStep; // 776
+const statsEnd = statsStart + STAT_COUNT * statStep;
 
-const compressStart = statsEnd + 10; // 786
-const compressEnd = compressStart + 36; // 822
-const lineTravelEnd = compressEnd + 28; // 850
-const logoIn = lineTravelEnd + 8; // 858
-const logoSettled = logoIn + 32; // 890
+const compressStart = statsEnd + 10;
+const compressEnd = compressStart + 14;
+const lineTravelEnd = compressEnd + 18;
+const logoIn = lineTravelEnd + 8;
+const logoSettled = logoIn + 20;
 
-export const TOTAL_FRAMES = 1050; // 35s — leaves a ~160-frame (5.3s) final hold
+export const TOTAL_FRAMES = 1140; // 38s — services get real room, everything else is tighter
 
 export const TIMELINE = {
   dotBorn,
@@ -62,11 +74,13 @@ export const TIMELINE = {
   pillHold,
   pillToRule,
   headlineIn,
+  headlineRevealEnd,
   headlineHold,
   headlineOut,
   servicesCardIn,
   serviceStart,
   serviceStep,
+  serviceTransitionFrames,
   SERVICE_COUNT,
   servicesEnd,
   statsCardOut,

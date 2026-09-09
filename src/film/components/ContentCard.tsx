@@ -36,12 +36,14 @@ export const ContentCard: React.FC<Props> = ({
   <div
     style={{
       position: 'absolute',
+      top: 0,
+      left: 0,
       width,
       height,
       borderRadius: radius,
-      background: FILM_COLORS.surface,
+      background: FILM_COLORS.background,
       border: `1px solid ${FILM_COLORS.border}`,
-      boxShadow: '0 20px 40px rgba(17,17,17,0.10)',
+      boxShadow: '0 14px 28px rgba(17,17,17,0.14)',
       opacity,
       filter: blur ? `blur(${blur}px)` : undefined,
       transform: `translate(${translateX}px, ${translateY}px) scale(${scale}) rotate(${rotate}deg)`,

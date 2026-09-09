@@ -8,52 +8,56 @@ type SpringOpts = {
 };
 
 /**
- * One consistent motion system for the whole film. Every named spring
- * shares the same physical character — fast acceleration, long smooth
- * deceleration, a perfectly damped rest, almost no overshoot — they only
- * differ in how quickly they settle. Nothing in this file uses a one-off
- * spring config; every animation in the composition goes through one of
- * these four.
+ * One consistent motion system for the whole film — fast acceleration,
+ * a long smooth deceleration, minimal overshoot, no visible bounce. All
+ * four configs sit just past critical damping (ratio ~1.1-1.7), which is
+ * what actually reads as "premium" rather than "sluggish": snappy onset,
+ * soft landing, never mushy.
  */
 
-/** The default: hero-shape morphs, card transforms, most everything. */
+/** The default: hero-shape morphs, card transforms, most transitions. */
 export const premiumSpring = ({frame, fps, delay = 0, durationInFrames}: SpringOpts) =>
   spring({
     frame: frame - delay,
     fps,
     durationInFrames,
-    config: {damping: 200, mass: 0.9, stiffness: 90},
+    config: {damping: 30, mass: 0.8, stiffness: 200},
   });
 
-/** Slightly slower settle — large holds, the final logo settle. */
+/** Slower settle — large holds, the final logo settle. */
 export const gentleSpring = ({frame, fps, delay = 0, durationInFrames}: SpringOpts) =>
   spring({
     frame: frame - delay,
     fps,
     durationInFrames,
-    config: {damping: 200, mass: 1.4, stiffness: 65},
+    config: {damping: 34, mass: 1, stiffness: 100},
   });
 
-/** Camera pushes / compressions — a touch snappier onset. */
+/** Camera pushes / longer compressions — heavier, more overdamped. */
 export const cameraSpring = ({frame, fps, delay = 0, durationInFrames}: SpringOpts) =>
   spring({
     frame: frame - delay,
     fps,
     durationInFrames,
-    config: {damping: 200, mass: 0.6, stiffness: 130},
+    config: {damping: 33, mass: 1, stiffness: 115},
   });
 
-/**
- * Typography only. Deliberately the gentlest of the four — Apple-style
- * headlines move only a few pixels, so the spring must be soft enough that
- * a 12-24px travel doesn't read as a snap.
- */
+/** Typography — a touch softer than premium so large text never snaps. */
 export const textSpring = ({frame, fps, delay = 0, durationInFrames}: SpringOpts) =>
   spring({
     frame: frame - delay,
     fps,
     durationInFrames,
-    config: {damping: 200, mass: 1.1, stiffness: 70},
+    config: {damping: 28, mass: 0.9, stiffness: 170},
+  });
+
+/** Flip / scroll transitions between services — the snappiest of the five. */
+export const flipSpring = ({frame, fps, delay = 0, durationInFrames}: SpringOpts) =>
+  spring({
+    frame: frame - delay,
+    fps,
+    durationInFrames,
+    config: {damping: 29, mass: 0.75, stiffness: 220},
   });
 
 export type SpringEngine = typeof premiumSpring;
