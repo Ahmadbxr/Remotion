@@ -38,11 +38,12 @@ export const MorphingPill: React.FC<Props> = ({
       background,
       border: borderWidth ? `${borderWidth}px solid ${borderColor}` : undefined,
       boxShadow: shadow
-        ? `0 ${shadow * 0.6}px ${shadow * 1.6}px rgba(0,0,0,0.45)`
+        ? `0 ${shadow * 0.6}px ${shadow * 1.6}px rgba(17,17,17,0.16)`
         : undefined,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
+      // Deliberately not flex + justify-content: center — that combination
+      // applies "safe alignment" when a child overflows (falls back to
+      // start instead of clipping), which lets oversized content escape
+      // overflow: hidden entirely. Children center themselves instead.
       overflow: 'hidden',
       position: 'relative',
       ...style,

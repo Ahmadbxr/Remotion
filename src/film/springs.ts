@@ -8,10 +8,16 @@ type SpringOpts = {
 };
 
 /**
- * The film's default motion signature: fast acceleration, long smooth
- * deceleration, and a perfectly damped rest — no overshoot, no bounce.
+ * One consistent motion system for the whole film. Every named spring
+ * shares the same physical character — fast acceleration, long smooth
+ * deceleration, a perfectly damped rest, almost no overshoot — they only
+ * differ in how quickly they settle. Nothing in this file uses a one-off
+ * spring config; every animation in the composition goes through one of
+ * these four.
  */
-export const smoothSpring = ({frame, fps, delay = 0, durationInFrames}: SpringOpts) =>
+
+/** The default: hero-shape morphs, card transforms, most everything. */
+export const premiumSpring = ({frame, fps, delay = 0, durationInFrames}: SpringOpts) =>
   spring({
     frame: frame - delay,
     fps,
@@ -19,26 +25,41 @@ export const smoothSpring = ({frame, fps, delay = 0, durationInFrames}: SpringOp
     config: {damping: 200, mass: 0.9, stiffness: 90},
   });
 
-/** Sharper onset for quick beats: digit ticks, dot pops, snap-ins. */
-export const fastSpring = ({frame, fps, delay = 0, durationInFrames}: SpringOpts) =>
+/** Slightly slower settle — large holds, the final logo settle. */
+export const gentleSpring = ({frame, fps, delay = 0, durationInFrames}: SpringOpts) =>
   spring({
     frame: frame - delay,
     fps,
     durationInFrames,
-    config: {damping: 200, mass: 0.4, stiffness: 260},
+    config: {damping: 200, mass: 1.4, stiffness: 65},
   });
 
-/** Gentle, unhurried settle for camera moves and large holds. */
-export const slowSpring = ({frame, fps, delay = 0, durationInFrames}: SpringOpts) =>
+/** Camera pushes / compressions — a touch snappier onset. */
+export const cameraSpring = ({frame, fps, delay = 0, durationInFrames}: SpringOpts) =>
   spring({
     frame: frame - delay,
     fps,
     durationInFrames,
-    config: {damping: 200, mass: 1.6, stiffness: 60},
+    config: {damping: 200, mass: 0.6, stiffness: 130},
   });
 
 /**
- * A 0→1 morph progress clamped to [start, end], eased with a spring whose
+ * Typography only. Deliberately the gentlest of the four — Apple-style
+ * headlines move only a few pixels, so the spring must be soft enough that
+ * a 12-24px travel doesn't read as a snap.
+ */
+export const textSpring = ({frame, fps, delay = 0, durationInFrames}: SpringOpts) =>
+  spring({
+    frame: frame - delay,
+    fps,
+    durationInFrames,
+    config: {damping: 200, mass: 1.1, stiffness: 70},
+  });
+
+export type SpringEngine = typeof premiumSpring;
+
+/**
+ * A 0→1 progress clamped to [start, end], eased with a spring whose
  * duration exactly matches the window so it lands at rest precisely on
  * `end` — the "perfect rest" half of the core motion principle.
  */
@@ -47,9 +68,8 @@ export const morphProgress = (
   start: number,
   end: number,
   fps: number,
-  fast = false,
+  engine: SpringEngine = premiumSpring,
 ) => {
-  const engine = fast ? fastSpring : smoothSpring;
   const raw = engine({
     frame,
     fps,
@@ -68,44 +88,25 @@ export const staggerProgress = (
     staggerFrames = 5,
     durationInFrames = 24,
     fps,
-    fast = false,
+    engine = premiumSpring,
   }: {
     startFrame: number;
     staggerFrames?: number;
     durationInFrames?: number;
     fps: number;
-    fast?: boolean;
+    engine?: SpringEngine;
   },
-) => morphProgress(frame, startFrame + index * staggerFrames, startFrame + index * staggerFrames + durationInFrames, fps, fast);
-
-/**
- * Continuous virtual-camera push: scale + blur + vertical drift, used at
- * scene joins so the viewer feels like they travelled through the frame
- * rather than watching a cut.
- */
-export const cameraPush = (
-  frame: number,
-  start: number,
-  end: number,
-  fps: number,
-  opts: {fromScale?: number; toScale?: number; blurPeak?: number; drift?: number} = {},
-) => {
-  const {fromScale = 1, toScale = 1.35, blurPeak = 18, drift = -40} = opts;
-  const p = morphProgress(frame, start, end, fps, true);
-  const scale = interpolate(p, [0, 1], [fromScale, toScale]);
-  const blur = interpolate(p, [0, 0.5, 1], [0, blurPeak, 0]);
-  const translateY = interpolate(p, [0, 1], [0, drift]);
-  return {scale, blur, translateY, progress: p};
-};
-
-/** Clamped linear helper used throughout for local, non-spring ramps. */
-export const ramp = (
-  frame: number,
-  start: number,
-  end: number,
-  fromV = 0,
-  toV = 1,
 ) =>
+  morphProgress(
+    frame,
+    startFrame + index * staggerFrames,
+    startFrame + index * staggerFrames + durationInFrames,
+    fps,
+    engine,
+  );
+
+/** Clamped linear helper for local, non-spring ramps (opacity masks etc). */
+export const ramp = (frame: number, start: number, end: number, fromV = 0, toV = 1) =>
   interpolate(frame, [start, end], [fromV, toV], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',

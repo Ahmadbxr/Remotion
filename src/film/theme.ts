@@ -1,10 +1,10 @@
 export const FILM_COLORS = {
-  background: '#050505',
-  primary: '#FFFFFF',
+  background: '#F5F3EF',
+  primary: '#111111',
   accent: '#F20505',
-  secondary: '#888888',
-  surface: '#0C0C0C',
-  border: 'rgba(255,255,255,0.14)',
+  secondary: '#707070',
+  surface: '#ECE9E2',
+  border: 'rgba(17,17,17,0.14)',
 } as const;
 
 export const FILM_FONT =
@@ -13,18 +13,70 @@ export const FILM_FONT =
 export const FILM_MONO =
   "ui-monospace, 'SF Mono', 'Roboto Mono', Menlo, Consolas, monospace";
 
-// Global timeline map (30fps). Every scene overlaps its neighbour by ~20
-// frames so nothing hard-cuts: the outgoing shape is still resolving while
-// the incoming one is already forming.
+export const FPS = 30;
+export const WIDTH = 1080;
+export const HEIGHT = 1920;
+
+/**
+ * One continuous timeline, expressed as named frame markers rather than
+ * independent per-scene start/end pairs. Every stage below is a state of
+ * the SAME persistent hero element and the SAME persistent headline slot —
+ * nothing here unmounts and remounts at a boundary, so there is no seam to
+ * hide. Consecutive markers overlap on purpose: a stage's hold is also the
+ * next stage's approach.
+ */
+const dotBorn = 0;
+const dotHold = 16;
+const pillGrow = 55;
+const pillHold = 80;
+const pillToRule = 110;
+
+const headlineIn = 150;
+const headlineHold = 200;
+const headlineOut = 230;
+
+const servicesCardIn = 260;
+const serviceStart = 272;
+const serviceStep = 36;
+const SERVICE_COUNT = 6;
+const servicesEnd = serviceStart + SERVICE_COUNT * serviceStep + 16; // 504
+
+const statsCardOut = servicesEnd + 24; // 528, card dissolves back to rule
+const statsStart = statsCardOut + 8; // 536
+const statStep = 80;
+const STAT_COUNT = 3;
+const statsEnd = statsStart + STAT_COUNT * statStep; // 776
+
+const compressStart = statsEnd + 10; // 786
+const compressEnd = compressStart + 36; // 822
+const lineTravelEnd = compressEnd + 28; // 850
+const logoIn = lineTravelEnd + 8; // 858
+const logoSettled = logoIn + 32; // 890
+
+export const TOTAL_FRAMES = 1050; // 35s — leaves a ~160-frame (5.3s) final hold
+
 export const TIMELINE = {
-  fps: 30,
-  width: 1080,
-  height: 1920,
-  totalFrames: 1050, // 35s
-  s1: {start: 0, end: 130}, // Hook
-  s2: {start: 110, end: 280}, // Attention
-  s3: {start: 260, end: 460}, // Offscript
-  s4: {start: 440, end: 640}, // Process
-  s5: {start: 620, end: 820}, // Performance
-  s6: {start: 800, end: 1050}, // Payoff
+  dotBorn,
+  dotHold,
+  pillGrow,
+  pillHold,
+  pillToRule,
+  headlineIn,
+  headlineHold,
+  headlineOut,
+  servicesCardIn,
+  serviceStart,
+  serviceStep,
+  SERVICE_COUNT,
+  servicesEnd,
+  statsCardOut,
+  statsStart,
+  statStep,
+  STAT_COUNT,
+  statsEnd,
+  compressStart,
+  compressEnd,
+  lineTravelEnd,
+  logoIn,
+  logoSettled,
 } as const;

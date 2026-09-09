@@ -57,7 +57,7 @@ export const AnalyticsGraph: React.FC<Props> = ({
               style={{
                 width: barWidth,
                 height: height * v,
-                background: i === values.length - 1 ? FILM_COLORS.accent : 'rgba(255,255,255,0.16)',
+                background: i === values.length - 1 ? FILM_COLORS.accent : 'rgba(17,17,17,0.13)',
                 borderRadius: 4,
                 transform: `scaleY(${p})`,
                 transformOrigin: 'bottom',

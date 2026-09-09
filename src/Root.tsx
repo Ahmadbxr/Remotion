@@ -2,7 +2,7 @@ import React from 'react';
 import {Composition} from 'remotion';
 import {OffscriptPromo, TOTAL_DURATION} from './OffscriptPromo';
 import {OffscriptFilm} from './film/OffscriptFilm';
-import {TIMELINE} from './film/theme';
+import {TOTAL_FRAMES, FPS, WIDTH, HEIGHT} from './film/theme';
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -18,10 +18,10 @@ export const RemotionRoot: React.FC = () => {
       <Composition
         id="OffscriptFilm"
         component={OffscriptFilm}
-        durationInFrames={TIMELINE.totalFrames}
-        fps={TIMELINE.fps}
-        width={TIMELINE.width}
-        height={TIMELINE.height}
+        durationInFrames={TOTAL_FRAMES}
+        fps={FPS}
+        width={WIDTH}
+        height={HEIGHT}
       />
     </>
   );

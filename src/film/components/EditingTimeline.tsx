@@ -30,7 +30,7 @@ export const EditingTimeline: React.FC<Props> = ({width, progress, playheadProgr
           border: `1px solid ${FILM_COLORS.border}`,
           display: 'flex',
           overflow: 'hidden',
-          background: '#0A0A0A',
+          background: FILM_COLORS.surface,
         }}
       >
         {SEGMENTS.map((frac, i) => {
@@ -46,10 +46,10 @@ export const EditingTimeline: React.FC<Props> = ({width, progress, playheadProgr
               style={{
                 width: `${frac * 100}%`,
                 height: '100%',
-                borderRight: i < SEGMENTS.length - 1 ? '1px solid rgba(255,255,255,0.1)' : undefined,
+                borderRight: i < SEGMENTS.length - 1 ? '1px solid rgba(17,17,17,0.08)' : undefined,
                 transform: `scaleX(${local})`,
                 transformOrigin: 'left center',
-                background: i % 2 === 0 ? '#161616' : '#1D1D1D',
+                background: i % 2 === 0 ? 'rgba(17,17,17,0.07)' : 'rgba(17,17,17,0.12)',
               }}
             />
           );
