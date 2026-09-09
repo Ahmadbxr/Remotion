@@ -1,11 +1,11 @@
 import React from 'react';
 import {AbsoluteFill, interpolate, useCurrentFrame} from 'remotion';
 import {COLORS, FONT_FAMILY} from '../theme';
-import {EnterText} from '../components/EnterText';
+import {WhipIn} from '../components/WhipIn';
 
 export const Individuality: React.FC = () => {
   const frame = useCurrentFrame();
-  const lineWidth = interpolate(frame, [20, 60], [0, 220], {
+  const lineWidth = interpolate(frame, [18, 55], [0, 180], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
@@ -16,33 +16,35 @@ export const Individuality: React.FC = () => {
         alignItems: 'center',
         justifyContent: 'center',
         flexDirection: 'column',
-        padding: '0 160px',
+        padding: '0 90px',
       }}
     >
-      <EnterText delay={0}>
+      <WhipIn delay={0}>
         <div
           style={{
             fontFamily: FONT_FAMILY,
-            fontWeight: 700,
-            fontSize: 76,
+            fontWeight: 800,
+            fontSize: 62,
             lineHeight: 1.15,
-            letterSpacing: -1.5,
+            letterSpacing: -1,
             textAlign: 'center',
-            color: COLORS.foreground,
+            color: COLORS.ink,
           }}
         >
           Keine Vorlagen.
           <br />
-          Jede Marke hat ihre eigene Geschichte.
+          Jede Marke hat ihre
+          <br />
+          eigene Geschichte.
         </div>
-      </EnterText>
+      </WhipIn>
       <div
         style={{
           width: lineWidth,
-          height: 3,
-          marginTop: 40,
+          height: 4,
+          marginTop: 34,
           borderRadius: 2,
-          background: `linear-gradient(90deg, ${COLORS.accentFrom}, ${COLORS.accentTo})`,
+          backgroundColor: COLORS.accent,
         }}
       />
     </AbsoluteFill>

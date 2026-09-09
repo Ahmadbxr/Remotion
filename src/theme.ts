@@ -1,12 +1,16 @@
 export const COLORS = {
-  background: '#000000',
-  foreground: '#F5F5F7',
-  muted: '#86868B',
-  accentFrom: '#2B5FFF',
-  accentTo: '#B24BFF',
+  background: '#ECECE7',
+  ink: '#1C1E21',
+  muted: '#6B6B68',
+  accent: '#F20505',
+  buttonDark: '#1C1E21',
+  cardDark: '#111113',
 } as const;
 
 export const FONT_FAMILY =
-  "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', Helvetica, Arial, sans-serif";
+  "-apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif";
 
-export const OVERLAP = 20;
+export const MONO_FONT_FAMILY =
+  "ui-monospace, 'SF Mono', 'Roboto Mono', Menlo, Consolas, monospace";
+
+export const OVERLAP = 18;

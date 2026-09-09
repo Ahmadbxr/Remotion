@@ -1,7 +1,7 @@
 import React from 'react';
 import {AbsoluteFill} from 'remotion';
 import {COLORS, FONT_FAMILY} from '../theme';
-import {EnterText} from '../components/EnterText';
+import {WhipIn} from '../components/WhipIn';
 
 export const Positioning: React.FC = () => {
   return (
@@ -10,49 +10,44 @@ export const Positioning: React.FC = () => {
         alignItems: 'center',
         justifyContent: 'center',
         flexDirection: 'column',
-        padding: '0 160px',
+        padding: '0 90px',
       }}
     >
-      <EnterText delay={0}>
+      <WhipIn delay={0}>
         <div
           style={{
             fontFamily: FONT_FAMILY,
-            fontWeight: 700,
-            fontSize: 68,
-            lineHeight: 1.2,
+            fontWeight: 800,
+            fontSize: 56,
+            lineHeight: 1.18,
             letterSpacing: -1,
             textAlign: 'center',
-            color: COLORS.foreground,
+            color: COLORS.ink,
           }}
         >
-          <span
-            style={{
-              backgroundImage: `linear-gradient(90deg, ${COLORS.accentFrom}, ${COLORS.accentTo})`,
-              WebkitBackgroundClip: 'text',
-              backgroundClip: 'text',
-              color: 'transparent',
-            }}
-          >
-            OFFSCRIPT
-          </span>{' '}
-          ist eure Social-Media- und Content-Agentur aus Zürich.
+          <span style={{color: COLORS.accent}}>Offscript</span> ist die
+          Social-Media- und Videoproduktions-Agentur aus Zürich.
         </div>
-      </EnterText>
-      <EnterText delay={20} distance={16}>
+      </WhipIn>
+      <WhipIn delay={16} distance={24}>
         <div
           style={{
             fontFamily: FONT_FAMILY,
             fontWeight: 500,
-            fontSize: 30,
-            letterSpacing: 1,
+            fontSize: 26,
+            lineHeight: 1.4,
             textAlign: 'center',
             color: COLORS.muted,
-            marginTop: 30,
+            marginTop: 28,
           }}
         >
-          Sichtbarkeit. Marke. Messbare Ergebnisse.
+          Wir konzipieren, drehen, schneiden und betreuen —
+          <br />
+          für Marken, die auf Instagram &amp; TikTok
+          <br />
+          wie sie selbst klingen sollen.
         </div>
-      </EnterText>
+      </WhipIn>
     </AbsoluteFill>
   );
 };

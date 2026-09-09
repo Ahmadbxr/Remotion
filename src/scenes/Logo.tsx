@@ -1,18 +1,9 @@
 import React from 'react';
-import {AbsoluteFill, interpolate, useCurrentFrame} from 'remotion';
-import {COLORS, FONT_FAMILY} from '../theme';
-import {EnterText} from '../components/EnterText';
+import {AbsoluteFill, Img, staticFile} from 'remotion';
+import {COLORS, MONO_FONT_FAMILY} from '../theme';
+import {WhipIn} from '../components/WhipIn';
 
 export const Logo: React.FC = () => {
-  const frame = useCurrentFrame();
-
-  const letterSpacing = interpolate(frame, [0, 45], [28, 4], {
-    extrapolateRight: 'clamp',
-  });
-  const opacity = interpolate(frame, [0, 25], [0, 1], {
-    extrapolateRight: 'clamp',
-  });
-
   return (
     <AbsoluteFill
       style={{
@@ -21,33 +12,24 @@ export const Logo: React.FC = () => {
         flexDirection: 'column',
       }}
     >
-      <div
-        style={{
-          fontFamily: FONT_FAMILY,
-          fontWeight: 800,
-          fontSize: 128,
-          color: COLORS.foreground,
-          letterSpacing,
-          opacity,
-        }}
-      >
-        OFFSCRIPT
-      </div>
-      <EnterText delay={30} distance={16}>
+      <WhipIn delay={0} distance={50}>
+        <Img src={staticFile('offscript-logo.png')} style={{width: 460}} />
+      </WhipIn>
+      <WhipIn delay={12} distance={20}>
         <div
           style={{
-            fontFamily: FONT_FAMILY,
+            fontFamily: MONO_FONT_FAMILY,
             fontWeight: 600,
-            fontSize: 26,
-            letterSpacing: 6,
+            fontSize: 20,
+            letterSpacing: 4,
             textTransform: 'uppercase',
             color: COLORS.muted,
-            marginTop: 22,
+            marginTop: 28,
           }}
         >
-          Social Media &amp; Content Agentur · Zürich
+          Zürich · Content &amp; Social Media
         </div>
-      </EnterText>
+      </WhipIn>
     </AbsoluteFill>
   );
 };

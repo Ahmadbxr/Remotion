@@ -1,7 +1,7 @@
 import React from 'react';
 import {AbsoluteFill, Series, interpolate, useCurrentFrame} from 'remotion';
 import {COLORS, FONT_FAMILY} from '../theme';
-import {EnterText} from '../components/EnterText';
+import {WhipIn} from '../components/WhipIn';
 
 const WORDS = ['Strategie', 'Produktion', 'Management', 'Wachstum'];
 const WORD_DURATION = 40;
@@ -10,8 +10,14 @@ const Word: React.FC<{label: string; index: number}> = ({label, index}) => {
   const frame = useCurrentFrame();
   const opacity = interpolate(
     frame,
-    [0, 10, WORD_DURATION - 10, WORD_DURATION],
+    [0, 8, WORD_DURATION - 10, WORD_DURATION],
     [0, 1, 1, 0],
+    {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'},
+  );
+  const blur = interpolate(
+    frame,
+    [0, 8, WORD_DURATION - 10, WORD_DURATION],
+    [14, 0, 0, 10],
     {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'},
   );
 
@@ -20,14 +26,15 @@ const Word: React.FC<{label: string; index: number}> = ({label, index}) => {
       <div
         style={{
           opacity,
+          filter: `blur(${blur}px)`,
           fontFamily: FONT_FAMILY,
           fontWeight: 800,
-          fontSize: 108,
-          letterSpacing: -2,
-          color: COLORS.foreground,
+          fontSize: 84,
+          letterSpacing: -1.5,
+          color: COLORS.ink,
         }}
       >
-        <span style={{color: COLORS.muted, fontSize: 48, marginRight: 24}}>
+        <span style={{color: COLORS.accent, fontSize: 38, marginRight: 18}}>
           0{index + 1}
         </span>
         {label}
@@ -47,21 +54,23 @@ export const ProcessList: React.FC = () => {
         ))}
       </Series>
       <AbsoluteFill
-        style={{alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 110}}
+        style={{alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 140}}
       >
-        <EnterText delay={10} distance={12}>
+        <WhipIn delay={10} distance={16}>
           <div
             style={{
               fontFamily: FONT_FAMILY,
               fontWeight: 500,
-              fontSize: 28,
+              fontSize: 24,
               color: COLORS.muted,
-              letterSpacing: 0.5,
+              letterSpacing: 0.3,
+              textAlign: 'center',
+              padding: '0 100px',
             }}
           >
             Von der ersten Idee bis zum fertigen Post — aus einer Hand.
           </div>
-        </EnterText>
+        </WhipIn>
       </AbsoluteFill>
     </AbsoluteFill>
   );

@@ -1,16 +1,16 @@
 import React from 'react';
 import {AbsoluteFill} from 'remotion';
 import {COLORS, FONT_FAMILY} from '../theme';
-import {EnterText} from '../components/EnterText';
+import {WhipIn} from '../components/WhipIn';
 
 const lineStyle: React.CSSProperties = {
   fontFamily: FONT_FAMILY,
-  fontWeight: 700,
-  fontSize: 92,
+  fontWeight: 800,
+  fontSize: 76,
   lineHeight: 1.08,
   letterSpacing: -1.5,
   textAlign: 'center',
-  color: COLORS.foreground,
+  color: COLORS.ink,
 };
 
 export const Hook: React.FC = () => {
@@ -20,17 +20,18 @@ export const Hook: React.FC = () => {
         alignItems: 'center',
         justifyContent: 'center',
         flexDirection: 'column',
-        padding: '0 140px',
+        padding: '0 90px',
       }}
     >
-      <EnterText delay={0}>
-        <div style={lineStyle}>Gute Arbeit reicht nicht.</div>
-      </EnterText>
-      <EnterText delay={14}>
-        <div style={{...lineStyle, color: COLORS.muted}}>
-          Man muss gesehen werden.
+      <WhipIn delay={0}>
+        <div style={lineStyle}>Das Beste passiert,</div>
+      </WhipIn>
+      <WhipIn delay={10}>
+        <div style={lineStyle}>
+          sobald das <span style={{color: COLORS.accent}}>Script</span> weg
+          ist.
         </div>
-      </EnterText>
+      </WhipIn>
     </AbsoluteFill>
   );
 };

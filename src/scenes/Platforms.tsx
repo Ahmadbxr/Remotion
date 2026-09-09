@@ -1,39 +1,13 @@
 import React from 'react';
-import {AbsoluteFill, spring, useCurrentFrame, useVideoConfig} from 'remotion';
+import {AbsoluteFill} from 'remotion';
 import {COLORS, FONT_FAMILY} from '../theme';
-import {EnterText} from '../components/EnterText';
+import {WhipIn} from '../components/WhipIn';
 
-const PLATFORMS = ['Instagram', 'TikTok', 'YouTube Shorts'];
-
-const Pill: React.FC<{label: string; delay: number}> = ({label, delay}) => {
-  const frame = useCurrentFrame();
-  const {fps} = useVideoConfig();
-
-  const progress = spring({
-    frame: frame - delay,
-    fps,
-    config: {damping: 200, mass: 0.6, stiffness: 140},
-  });
-  const translateX = (1 - progress) * 40;
-
-  return (
-    <div
-      style={{
-        opacity: Math.max(0, Math.min(1, progress)),
-        transform: `translateX(${translateX}px)`,
-        fontFamily: FONT_FAMILY,
-        fontWeight: 600,
-        fontSize: 30,
-        color: COLORS.foreground,
-        border: `1.5px solid rgba(245,245,247,0.35)`,
-        borderRadius: 999,
-        padding: '16px 40px',
-      }}
-    >
-      {label}
-    </div>
-  );
-};
+const PLATFORMS: {label: string; direction: 'left' | 'right'}[] = [
+  {label: 'Instagram', direction: 'left'},
+  {label: 'TikTok', direction: 'right'},
+  {label: 'YouTube Shorts', direction: 'left'},
+];
 
 export const Platforms: React.FC = () => {
   return (
@@ -44,26 +18,41 @@ export const Platforms: React.FC = () => {
         flexDirection: 'column',
       }}
     >
-      <EnterText delay={0}>
+      <WhipIn delay={0}>
         <div
           style={{
             fontFamily: FONT_FAMILY,
-            fontWeight: 700,
-            fontSize: 64,
+            fontWeight: 800,
+            fontSize: 52,
             lineHeight: 1.2,
             letterSpacing: -1,
             textAlign: 'center',
-            color: COLORS.foreground,
-            padding: '0 200px',
+            color: COLORS.ink,
+            padding: '0 100px',
             marginBottom: 56,
           }}
         >
           Modernes Short-Form-Content, das gesehen wird.
         </div>
-      </EnterText>
-      <div style={{display: 'flex', gap: 24}}>
-        {PLATFORMS.map((label, index) => (
-          <Pill key={label} label={label} delay={18 + index * 8} />
+      </WhipIn>
+      <div style={{display: 'flex', flexDirection: 'column', gap: 22, width: 460}}>
+        {PLATFORMS.map(({label, direction}, index) => (
+          <WhipIn key={label} delay={16 + index * 8} direction={direction} distance={90}>
+            <div
+              style={{
+                fontFamily: FONT_FAMILY,
+                fontWeight: 700,
+                fontSize: 30,
+                color: COLORS.ink,
+                border: `2px solid ${COLORS.ink}`,
+                borderRadius: 999,
+                padding: '18px 0',
+                textAlign: 'center',
+              }}
+            >
+              {label}
+            </div>
+          </WhipIn>
         ))}
       </div>
     </AbsoluteFill>

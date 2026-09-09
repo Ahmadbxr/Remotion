@@ -3,20 +3,20 @@ import {AbsoluteFill, interpolate, useCurrentFrame} from 'remotion';
 import {COLORS} from '../theme';
 
 /**
- * Slow-drifting radial glow over a pure black field, the quiet backdrop
- * Apple keynote pieces use so type stays the only thing in motion.
+ * Flat warm off-white field with a barely-there drifting highlight,
+ * matching offscript.ch's own light background rather than a dark keynote.
  */
 export const GlowBackground: React.FC = () => {
   const frame = useCurrentFrame();
 
-  const x = interpolate(Math.sin(frame / 210), [-1, 1], [30, 70]);
-  const y = interpolate(Math.cos(frame / 260), [-1, 1], [20, 60]);
+  const x = interpolate(Math.sin(frame / 240), [-1, 1], [35, 65]);
+  const y = interpolate(Math.cos(frame / 300), [-1, 1], [15, 45]);
 
   return (
     <AbsoluteFill style={{backgroundColor: COLORS.background}}>
       <AbsoluteFill
         style={{
-          background: `radial-gradient(circle at ${x}% ${y}%, rgba(43,95,255,0.20), rgba(178,75,255,0.10) 35%, rgba(0,0,0,0) 65%)`,
+          background: `radial-gradient(circle at ${x}% ${y}%, rgba(242,5,5,0.06), rgba(242,5,5,0) 45%)`,
         }}
       />
     </AbsoluteFill>

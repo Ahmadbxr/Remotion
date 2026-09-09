@@ -1,7 +1,7 @@
 import React from 'react';
-import {AbsoluteFill} from 'remotion';
-import {COLORS, FONT_FAMILY} from '../theme';
-import {EnterText} from '../components/EnterText';
+import {AbsoluteFill, Img, staticFile} from 'remotion';
+import {COLORS, FONT_FAMILY, MONO_FONT_FAMILY} from '../theme';
+import {WhipIn} from '../components/WhipIn';
 
 export const Outro: React.FC = () => {
   return (
@@ -10,77 +10,79 @@ export const Outro: React.FC = () => {
         alignItems: 'center',
         justifyContent: 'center',
         flexDirection: 'column',
-        padding: '0 160px',
+        padding: '0 90px',
       }}
     >
-      <EnterText delay={0}>
+      <WhipIn delay={0} distance={30}>
+        <Img src={staticFile('offscript-logo.png')} style={{width: 260, marginBottom: 44}} />
+      </WhipIn>
+      <WhipIn delay={14}>
         <div
           style={{
             fontFamily: FONT_FAMILY,
             fontWeight: 800,
-            fontSize: 84,
-            lineHeight: 1.12,
-            letterSpacing: -1.5,
+            fontSize: 62,
+            lineHeight: 1.15,
+            letterSpacing: -1,
             textAlign: 'center',
-            color: COLORS.foreground,
+            color: COLORS.ink,
           }}
         >
           Content, der im Kopf bleibt.
         </div>
-      </EnterText>
-      <EnterText delay={16}>
+      </WhipIn>
+      <WhipIn delay={28} distance={20}>
         <div
           style={{
             fontFamily: FONT_FAMILY,
             fontWeight: 500,
-            fontSize: 32,
+            fontSize: 26,
             textAlign: 'center',
             color: COLORS.muted,
-            marginTop: 20,
+            marginTop: 18,
           }}
         >
           Marken, die online nicht übersehen werden.
         </div>
-      </EnterText>
-      <EnterText delay={40} distance={18}>
+      </WhipIn>
+      <WhipIn delay={48} distance={20}>
         <div
           style={{
-            marginTop: 64,
+            marginTop: 56,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: 16,
+            gap: 22,
           }}
         >
           <div
             style={{
               fontFamily: FONT_FAMILY,
               fontWeight: 700,
-              fontSize: 40,
+              fontSize: 22,
               letterSpacing: 1,
-              color: COLORS.foreground,
-              backgroundImage: `linear-gradient(90deg, ${COLORS.accentFrom}, ${COLORS.accentTo})`,
-              WebkitBackgroundClip: 'text',
-              backgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
+              color: '#FFFFFF',
+              backgroundColor: COLORS.buttonDark,
+              borderRadius: 999,
+              padding: '20px 44px',
+              textTransform: 'uppercase',
+            }}
+          >
+            Erstgespräch buchen
+          </div>
+          <div
+            style={{
+              fontFamily: MONO_FONT_FAMILY,
+              fontWeight: 500,
+              fontSize: 22,
+              letterSpacing: 1,
+              color: COLORS.accent,
             }}
           >
             offscript.ch
           </div>
-          <div
-            style={{
-              fontFamily: FONT_FAMILY,
-              fontWeight: 500,
-              fontSize: 22,
-              letterSpacing: 3,
-              textTransform: 'uppercase',
-              color: COLORS.muted,
-            }}
-          >
-            Strategie · Produktion · Management · Wachstum
-          </div>
         </div>
-      </EnterText>
+      </WhipIn>
     </AbsoluteFill>
   );
 };
