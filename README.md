@@ -913,6 +913,72 @@ edge, no clipping. Item 17 holds.
 the opening at all); all 600 frames re-checked against the safe zones with
 the two intended pass-through crops excluded — no information crosses.
 
+### Sound design rebuild
+
+Rebuilt from zero on five supplied sounds. The previous SFX library was
+deleted, not layered over.
+
+**The sounds were analysed, not read off their filenames.** Each upload was
+decoded and measured — duration, envelope, attack, band energy, temporal
+centroid — which produced a complete frequency kit from five files:
+
+| source | measured | role |
+|---|---|---|
+| dragonstudio-basshit | 86% below 80Hz, 270ms rise | sub |
+| juniorsound-22 | 95% in 250Hz-2k, 10ms attack | mid body |
+| juniorsound-70 | 50% mid + 43% hi, 30ms attack | crisp transient |
+| juniorsound-73 | 52% in 2-8k + 37% air, quiet | air, micro |
+| juniorsound-41 | 51% above 8k | high transient |
+
+The last one is why the analysis mattered: its burst sits **190ms into the
+file**, behind near-silence. Dropped onto a beat it would have landed six
+frames late. It is trimmed so its transient is at t=0.
+
+**Movement layers are derived from the supplied air, not substituted.** The
+library has no whoosh and no riser, so those are built from the air source by
+stretching, filtering and re-enveloping — the whole Reel speaks with one
+voice rather than borrowing a stock whoosh pack.
+
+**Architecture.** `audio/mix.ts` is the whole balance in one table (buses
+from TEXTURE up to IMPACT, plus a master trim). `audio/cues.ts` is the cue
+sheet as data — written against the finished picture before any audio was
+wired. Every cue carries a required `why`, because the brief's last rule is
+that a sound must contribute more than "something moved", and a required
+field is harder to ignore than a good intention. `audio/AudioCue.tsx`
+renders the sheet.
+
+**Two bugs the measurements caught that listening for them would have
+missed:**
+
+- *Two cues were playing pure silence.* `air-pull` is the air source
+  reversed, and reversing moved its content to the file's **last** second —
+  so cues that played its first 34 frames produced literal digital silence.
+  The camera pull-outs at f126 and f486 measured -120 dB. Every movement
+  file is now trimmed so the file IS its content, which also makes `hold`
+  mean what it says.
+- *The beds were masking their own accents.* The service ticks and — worse —
+  the offscript.ch accent measured a **1dB lift or less** against the texture
+  under them. The one sound whose job is to flag the URL was the one buried.
+  Beds came down, accents came up, and the tonal tail under the endcard was
+  shortened so the URL has clear air.
+
+**Peak alignment.** A cue's frame is when the sound should be *heard*, and
+that is its peak, not its first sample. These files peak one to two frames
+after they start, so the renderer subtracts a measured per-file offset —
+without it every transient sat 30-70ms late. Only transients are
+compensated; the swells are placed by their start on purpose.
+
+**Verified:** peak -9.8 dBFS, zero clipped samples, 9.8 dB of headroom, no
+limiter. The arc measures as designed — hook -45 dB, LANGWEILIG -24.5, the
+problem section deliberately empty at -58, services -46, process -53, dark
+-28, and FALL AUF the loudest thing in the Reel at -21.5, a clear 6.6 dB
+above the next tier. The last 44 frames are digital silence, so the URL has
+a second and a half to be read. Low-frequency share climbs 8% -> 11% -> 30%
+into the build and resolves to 0.1% on the endcard.
+
+**And the picture did not move:** the visual jerk profile after the sound
+pass is identical to the render before it, frame for frame.
+
 ## Usage
 
 ```bash

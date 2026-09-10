@@ -1,6 +1,8 @@
 import React from 'react';
-import {AbsoluteFill, Audio, Sequence, interpolate, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
-import {BRAND, FONT} from './theme';
+import {AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig} from 'remotion';
+import {BRAND, FONT, TOTAL_FRAMES} from './theme';
+import {SoundDesign} from './audio/AudioCue';
+import {CUES} from './audio/cues';
 import {springProgress, TEXT, SETTLE} from './motion/springs';
 import {
   easeProgress,
@@ -393,35 +395,14 @@ export const OffscriptReel: React.FC = () => {
   ];
 
   // =========================================================================
-  // SOUND — sparse accents only, on the moments that carry weight.
+  // SOUND — see audio/cues.ts. The whole soundtrack is a declarative cue
+  // sheet written against the finished picture, not sounds scattered
+  // through this component next to the things they happen to accompany.
   // =========================================================================
-  type Cue = {frame: number; file: string; volume: number};
-  const cues: Cue[] = [
-    {frame: Math.round(b1ImpactHit), file: 'icon-lock.wav', volume: 0.7},
-    {frame: 46, file: 'morph-tone.wav', volume: 0.45},
-    {frame: b2SwipeStart, file: 'scroll-air.wav', volume: 0.6},
-    {frame: b3LogoStart, file: 'offscript-signature.wav', volume: 0.85},
-    {frame: b3HitStart, file: 'flip-air.wav', volume: 0.45},
-    {frame: b4MachineStart, file: 'icon-lock.wav', volume: 0.3},
-    {frame: b4MachineStart + b4Slot, file: 'icon-lock.wav', volume: 0.3},
-    {frame: b4MachineStart + b4Slot * 2, file: 'icon-lock.wav', volume: 0.3},
-    {frame: b4MachineStart + b4Slot * 3, file: 'icon-lock.wav', volume: 0.3},
-    {frame: b5ChainStart + 22, file: 'flip-air.wav', volume: 0.3},
-    {frame: b5ChainStart + 66, file: 'icon-lock.wav', volume: 0.4},
-    {frame: b5MetricStart + b5RollDur, file: 'metric-pulse-3.wav', volume: 0.55},
-    {frame: b6Line1Start, file: 'morph-tone.wav', volume: 0.3},
-    {frame: Math.round(b6Line2Start + 18 * 0.62), file: 'offscript-signature.wav', volume: 0.5},
-    {frame: b7LogoStart, file: 'soft-settle.wav', volume: 0.45},
-    {frame: b7CtaStart + 6, file: 'icon-lock.wav', volume: 0.18},
-  ];
 
   return (
     <AbsoluteFill style={{backgroundColor: rootSurface, overflow: 'hidden'}}>
-      {cues.map((cue, i) => (
-        <Sequence key={i} from={Math.max(cue.frame, 0)} layout="none">
-          <Audio src={staticFile(`sfx/${cue.file}`)} volume={cue.volume} />
-        </Sequence>
-      ))}
+      <SoundDesign cues={CUES} totalFrames={TOTAL_FRAMES} />
 
       <CameraRig frame={frame} impacts={cameraImpacts} camera={camera}>
       <div style={{position: 'absolute', inset: 0, filter: camBlur > 0.05 ? `blur(${camBlur}px)` : undefined}}>
