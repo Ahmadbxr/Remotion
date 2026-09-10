@@ -150,6 +150,25 @@ export const scrollSettle = (p: number, from: number, to: number) => {
 };
 
 /**
+ * Maps a measured per-frame velocity (px/frame, or any consistent unit) to
+ * a blur radius: 0 at rest, rising toward `maxBlur` as `velocity` approaches
+ * `maxVelocity`. This is the one place blur amount is decided anywhere in
+ * the film — callers measure an actual frame-to-frame delta of the thing
+ * that's moving and pass it in here, rather than hand-authoring a blur
+ * curve against progress/time. Physically-driven blur this way
+ * automatically goes to exactly 0 the instant motion stops (a hold is
+ * never blurred) and automatically scales with however fast a given
+ * overshoot/settle curve happens to be moving at each frame, instead of a
+ * fixed "blur(8px) for 10 frames" that doesn't know what the motion is
+ * actually doing.
+ */
+export const getMotionBlur = (velocity: number, maxVelocity: number, maxBlur: number) =>
+  interpolate(Math.abs(velocity), [0, maxVelocity], [0, maxBlur], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+
+/**
  * Shapes a clamped 0→1 progress into a value that overshoots `to` by
  * `overshoot` (a fraction of the from→to distance) before settling back —
  * ONE bounce, never a cartoon oscillation. Directionally consistent by

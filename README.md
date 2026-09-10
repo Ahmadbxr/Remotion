@@ -56,19 +56,30 @@ instead of pairing with a "next" service.
   pairing, plus headline / service / stat / logo layers positioned
   relative to the hero.
 - `src/film/components/MaskText.tsx` — fixed-container, vertical mask-reveal
-  text (translateY within an `overflow: hidden` row, blur-to-sharp, tracking
-  tighten, gentle settle on exit) — never a fly-in, never a plain fade.
+  text (translateY within an `overflow: hidden` row, tracking tighten,
+  gentle settle on exit) — never a fly-in, never a plain fade. Blur is
+  velocity-based, not authored: every frame it measures how far the text
+  actually moved since the previous frame (from `enter`/`enterPrev` and
+  `exit`/`exitPrev`) and runs that real speed through `getMotionBlur` —
+  fast movement blurs, a hold is always exactly 0px, headlines carry a
+  higher `maxBlur` ceiling than small labels. Two faint trailing "ghost"
+  copies (opacity ~0.04-0.13) ride along the same measured velocity to
+  simulate directional blur, and disappear entirely at rest.
 - `src/film/components/StatOdometer.tsx` — the three real stats as one
   persistent scrolling column (a mechanical odometer, not a counter);
   outgoing/incoming numbers scale and blur individually for a fast, fluid
   handoff.
 - `src/film/components/FlipTransition.tsx` / `ScrollTransition.tsx` — the
-  two newer vocabulary pieces. Flip now moves rotation, translateY and
-  scale together (never rotation alone) and both carry one controlled
-  overshoot via `withOvershoot`; scroll's incoming travel follows
-  `scrollSettle`, a fixed 5-point curve (fast 0-85%, one small overshoot,
-  soft correction into a hard 0) modeled directly on the film's reference
-  y-position example.
+  two newer vocabulary pieces. Flip moves rotation and translateY together
+  (never rotation alone) with one controlled overshoot via `withOvershoot`;
+  scroll's incoming travel follows `scrollSettle`, a fixed 5-point curve
+  (fast 0-85%, one small overshoot, soft correction into a hard 0) modeled
+  directly on the film's reference y-position example. Scale in both is a
+  plain monotonic ease, deliberately without its own overshoot — see the
+  double-overshoot fix below. Both accept an optional `progressPrev` and
+  derive a light (max ~5px) velocity-based icon blur from the measured
+  rotation/position delta, exactly like `MaskText`'s text blur but weaker
+  and never applied while an icon's own paths are still drawing.
 - `src/film/components/` — `RedDot`, `MorphingPill`, `ContentCard`,
   `CameraFrame`, `EditingTimeline`, `AnalyticsGraph`, `MorphTransition`
   (recolored for the light palette).
@@ -85,7 +96,12 @@ instead of pairing with a "next" service.
   value-shaping helpers used on top of it: `withOvershoot` (a generic
   directionally-consistent single-overshoot curve — growth overshoots
   larger, upward motion overshoots further up, by construction) and
-  `scrollSettle` (the scroll-specific 5-point settle curve).
+  `scrollSettle` (the scroll-specific 5-point settle curve), and
+  `getMotionBlur` — the one place blur amount is decided anywhere in the
+  film: it maps a measured per-frame velocity to a blur radius (0 at rest,
+  rising toward a caller-given ceiling). Every blur value in the project
+  (text, its trailing ghosts, icons in flip/scroll) is driven through it
+  rather than hand-authored per moment.
 - `src/film/theme.ts` — colors, font stacks, and `TIMELINE`, the single
   source of frame markers the whole film reads from.
 - `scripts/synth-sfx.py` — generates the entire sound library from scratch
@@ -151,6 +167,41 @@ timeline in `OffscriptFilm.tsx`'s `SFX_CUES` list via `<Sequence from=…>`
   (opacity 0) by the transition's midpoint and the incoming word doesn't
   start appearing until then — never simultaneously legible — with blur
   peaking right at that midpoint crossover instead of at the endpoints.
+- **The service "double-pop" bug**: the hold-state service label recomputed
+  its `MaskText` `enter` value from `serviceAbsStart(stage.index)` — the
+  frame its own render branch starts being used, not the frame the service
+  actually began arriving. At that exact frame `enter` reads back near 0,
+  even though the transition's own "incoming label" had already carried it
+  to `enter=1` moments earlier — so the label visibly snapped back to its
+  pre-reveal state and re-animated in a second time right as the transition
+  handed off to the hold. Fixed by anchoring the hold-state label to the
+  same start frame the icon build already uses (`iconBuildStart`), so the
+  value is already saturated at 1 by the time the hand-off happens —
+  continuous across the remount instead of resetting. (The icon itself
+  never had this bug: `buildProgress` is a pure function of frame/index,
+  not of which render branch is currently mounted, so it was already
+  continuous across the same hand-off.)
+- **Double scale-overshoot on flip/scroll service transitions**: both
+  `FlipTransition`'s incoming face and `scrollIn`'s incoming layer applied
+  their own `withOvershoot` bounce to `scale`, *on top of* `CardFace`'s
+  content-level completion-overshoot pulse on the icon inside — two
+  independent bounces on the same value at overlapping times, reading as a
+  second pop. Fixed by making the container-level scale in both a plain
+  monotonic ease; `CardFace` (icons) and `MaskText` (labels) are now each
+  the sole owner of the one overshoot on their own content, while their
+  containers only ever animate position/rotation.
+- Text and icon blur used to be flat, hand-authored curves (fixed px over a
+  fixed number of frames) with no way to actually go to 0 during a hold.
+  Replaced with a real velocity measurement (`enter`/`enterPrev`,
+  `exit`/`exitPrev` a frame apart) run through the new `getMotionBlur`, so
+  blur now rises and falls with how fast something is actually moving and
+  is exactly 0 the instant it stops.
+
+A programmatic scene-change scan (`ffmpeg`'s `scene` filter) across the
+full rendered video confirms the fix: only 4 frames in all 1140 register a
+notable frame-to-frame change, and all 4 land exactly on legitimate
+structural transitions (pill→rule, headline exit, the two stat handoffs)
+— none at any service or icon boundary.
 
 ## Usage
 

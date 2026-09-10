@@ -199,7 +199,12 @@ const getServiceStage = (frame: number, fps: number) => {
   const transitionProgress = inTransition
     ? morphProgress(frame, transitionAbsStart, transitionAbsStart + T.serviceTransitionFrames, fps, OFFSCRIPT_FLIP)
     : 0;
-  return {index, local, inTransition, transitionProgress};
+  // Same window, one frame earlier — lets flip/scroll spatial motion blur
+  // be measured from a real position delta instead of guessed from `p`.
+  const transitionProgressPrev = inTransition
+    ? morphProgress(frame - 1, transitionAbsStart, transitionAbsStart + T.serviceTransitionFrames, fps, OFFSCRIPT_FLIP)
+    : 0;
+  return {index, local, inTransition, transitionProgress, transitionProgressPrev};
 };
 
 const ServiceIcon: React.FC<{index: number; buildProgress: number; frame: number; fps: number}> = ({
@@ -343,13 +348,22 @@ export const OffscriptFilm: React.FC = () => {
 
   const hero = getHero(frame, fps);
 
+  // Every MaskText enter/exit below is measured as a {value, prev} pair so
+  // MaskText can derive real per-frame velocity (and therefore real
+  // velocity-based motion blur) instead of guessing from progress alone —
+  // `prev` is the identical window evaluated one frame earlier.
+  const mp2 = (start: number, end: number, engine = OFFSCRIPT_SMOOTH) => ({
+    value: morphProgress(frame, start, end, fps, engine),
+    prev: morphProgress(frame - 1, start, end, fps, engine),
+  });
+
   // --- Pill label ("OFFSCRIPT") -------------------------------------------
-  const pillLabelEnter = morphProgress(frame, T.pillGrow - 10, T.pillGrow + 6, fps, OFFSCRIPT_SMOOTH);
-  const pillLabelExit = morphProgress(frame, T.pillHold + 2, T.pillToRule, fps, OFFSCRIPT_SMOOTH);
+  const pillLabelEnter = mp2(T.pillGrow - 10, T.pillGrow + 6);
+  const pillLabelExit = mp2(T.pillHold + 2, T.pillToRule);
 
   // --- Headline ------------------------------------------------------------
-  const headlineEnter = morphProgress(frame, T.headlineIn, T.headlineRevealEnd, fps, OFFSCRIPT_SMOOTH);
-  const headlineExit = morphProgress(frame, T.headlineHold, T.headlineOut, fps, OFFSCRIPT_SMOOTH);
+  const headlineEnter = mp2(T.headlineIn, T.headlineRevealEnd);
+  const headlineExit = mp2(T.headlineHold, T.headlineOut);
 
   // --- Services --------------------------------------------------------------
   const stage = getServiceStage(frame, fps);
@@ -364,6 +378,9 @@ export const OffscriptFilm: React.FC = () => {
   // section instead of pairing with a "next" service.
   const finalPush = isLast
     ? morphProgress(frame, serviceAbsStart(5) + TRANSITION_START, T.servicesEnd, fps, OFFSCRIPT_SETTLE)
+    : 0;
+  const finalPushPrev = isLast
+    ? morphProgress(frame - 1, serviceAbsStart(5) + TRANSITION_START, T.servicesEnd, fps, OFFSCRIPT_SETTLE)
     : 0;
 
   const showServices = frame >= T.serviceStart - 4 && frame < T.servicesEnd + 4;
@@ -396,8 +413,8 @@ export const OffscriptFilm: React.FC = () => {
   const logoScale = interpolate(logoEnter, [0, 1], [0.97, 1]);
   const logoOpacity = logoEnter;
 
-  const subEnter = morphProgress(frame, T.logoSettled - 4, T.logoSettled + 20, fps, OFFSCRIPT_SMOOTH);
-  const tagEnter = morphProgress(frame, T.logoSettled + 16, T.logoSettled + 46, fps, OFFSCRIPT_SMOOTH);
+  const subEnter = mp2(T.logoSettled - 4, T.logoSettled + 20);
+  const tagEnter = mp2(T.logoSettled + 16, T.logoSettled + 46);
 
   // A settling breathing-room drift for the very end — barely perceptible.
   const settleT = Math.max(frame - (T.logoSettled + 70), 0) / fps;
@@ -439,8 +456,10 @@ export const OffscriptFilm: React.FC = () => {
             fontWeight={800}
             letterSpacingFrom={5}
             letterSpacingTo={2}
-            enter={pillLabelEnter}
-            exit={pillLabelExit}
+            enter={pillLabelEnter.value}
+            enterPrev={pillLabelEnter.prev}
+            exit={pillLabelExit.value}
+            exitPrev={pillLabelExit.prev}
             style={{position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)'}}
           />
 
@@ -474,6 +493,7 @@ export const OffscriptFilm: React.FC = () => {
                 <div style={{position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
                   <FlipTransition
                     progress={stage.transitionProgress}
+                    progressPrev={stage.transitionProgressPrev}
                     width={240}
                     height={220}
                     axis={stage.index % 2 === 0 ? 'Y' : 'X'}
@@ -483,36 +503,42 @@ export const OffscriptFilm: React.FC = () => {
                 </div>
               )}
 
-              {stage.inTransition && kind === 'scroll' && (
-                <>
-                  <div
-                    style={{
-                      position: 'absolute',
-                      inset: 0,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      opacity: scrollOut(stage.transitionProgress, 0.85).opacity,
-                      transform: scrollTransform(scrollOut(stage.transitionProgress, 0.85)),
-                    }}
-                  >
-                    <CardFace buildProgress={currentBuild}>{currentIcon}</CardFace>
-                  </div>
-                  <div
-                    style={{
-                      position: 'absolute',
-                      inset: 0,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      opacity: scrollIn(stage.transitionProgress, 0.85).opacity,
-                      transform: scrollTransform(scrollIn(stage.transitionProgress, 0.85)),
-                    }}
-                  >
-                    <CardFace buildProgress={nextBuild}>{nextIcon}</CardFace>
-                  </div>
-                </>
-              )}
+              {stage.inTransition && kind === 'scroll' && (() => {
+                const iconOut = scrollOut(stage.transitionProgress, 0.85, stage.transitionProgressPrev);
+                const iconIn = scrollIn(stage.transitionProgress, 0.85, stage.transitionProgressPrev);
+                return (
+                  <>
+                    <div
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        opacity: iconOut.opacity,
+                        filter: iconOut.blur ? `blur(${iconOut.blur}px)` : undefined,
+                        transform: scrollTransform(iconOut),
+                      }}
+                    >
+                      <CardFace buildProgress={currentBuild}>{currentIcon}</CardFace>
+                    </div>
+                    <div
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        opacity: iconIn.opacity,
+                        filter: iconIn.blur ? `blur(${iconIn.blur}px)` : undefined,
+                        transform: scrollTransform(iconIn),
+                      }}
+                    >
+                      <CardFace buildProgress={nextBuild}>{nextIcon}</CardFace>
+                    </div>
+                  </>
+                );
+              })()}
 
               {stage.inTransition && kind === 'morph' && (
                 <>
@@ -568,8 +594,11 @@ export const OffscriptFilm: React.FC = () => {
           fontWeight={800}
           letterSpacingFrom={5}
           letterSpacingTo={-1.5}
-          enter={headlineEnter}
-          exit={headlineExit}
+          enter={headlineEnter.value}
+          enterPrev={headlineEnter.prev}
+          exit={headlineExit.value}
+          exitPrev={headlineExit.prev}
+          maxBlur={13}
         />
       </div>
 
@@ -593,8 +622,20 @@ export const OffscriptFilm: React.FC = () => {
               fontWeight={800}
               letterSpacingFrom={5}
               letterSpacingTo={0}
-              enter={morphProgress(frame, serviceAbsStart(stage.index), serviceAbsStart(stage.index) + 10, fps, OFFSCRIPT_SMOOTH)}
+              // Anchored to the SAME frame the incoming transition (and the
+              // icon build) started, not to this hold-block's own mount
+              // frame. The transition's "label-in" instance already carries
+              // this reveal to enter=1 by the time it hands off here — if
+              // this recomputed enter from serviceAbsStart(stage.index)
+              // instead, it would read back near 0 at the exact remount
+              // frame and the label would visibly reset and re-reveal
+              // itself a second time (the "double pop" bug). Anchoring both
+              // sides to the same start frame keeps the value continuous
+              // across the remount instead.
+              enter={morphProgress(frame, iconBuildStart(stage.index), iconBuildStart(stage.index) + 10, fps, OFFSCRIPT_SMOOTH)}
+              enterPrev={morphProgress(frame - 1, iconBuildStart(stage.index), iconBuildStart(stage.index) + 10, fps, OFFSCRIPT_SMOOTH)}
               exit={isLast ? finalPush : 0}
+              exitPrev={isLast ? finalPushPrev : 0}
             />
           )}
 
@@ -718,7 +759,8 @@ export const OffscriptFilm: React.FC = () => {
             color={FILM_COLORS.secondary}
             letterSpacingFrom={4}
             letterSpacingTo={3}
-            enter={subEnter}
+            enter={subEnter.value}
+            enterPrev={subEnter.prev}
           />
         </div>
 
@@ -731,7 +773,8 @@ export const OffscriptFilm: React.FC = () => {
             fontWeight={700}
             letterSpacingFrom={3}
             letterSpacingTo={-0.5}
-            enter={tagEnter}
+            enter={tagEnter.value}
+            enterPrev={tagEnter.prev}
           />
         </div>
       </div>
