@@ -82,8 +82,17 @@ export const OffscriptReel: React.FC = () => {
   const b1MarkeStart = 2;
   const b1IstNichtStart = 18;
   const b1ImpactStart = 32;
-  const b1ImpactDur = 14;
+  // 9, not 14. The red field lights at f46, and at 14 the word's own
+  // entrance was not finished until f46 either — so the takeover began
+  // while the title was still arriving, and every reaction below was still
+  // ringing on top of it. Landing at f37.6 buys the settle, the stable
+  // moment and the anticipation the handoff needs, without moving the word's
+  // entrance or the red one frame.
+  const b1ImpactDur = 9;
   const b1ImpactHit = b1ImpactStart + b1ImpactDur * 0.62;
+  // Everything the impact sets in motion is over by here — hard deadline,
+  // three frames before the red field appears.
+  const b1QuietAt = 44.6;
 
   // The red field bursts out of the word and DECELERATES as it fills the
   // frame, arriving with almost no velocity at f65. The recede then starts
@@ -130,20 +139,34 @@ export const OffscriptReel: React.FC = () => {
   // the type around it takes a fraction, and later, by distance from the
   // hit; the camera (below) takes least of all. Mass matters too — the
   // 208px display words barely move, the 42px kicker moves most.
-  const lwRecoil = impactOffset(frame, b1ImpactHit, 11, -8, 3); // PRIMARY (Y support)
+  // ONE lobe out, ONE gentle counter, done. At cycles 3 these rang three
+  // times — and at 30fps a reaction that changes direction every second
+  // frame is not a recoil, it is vibration. Every reaction below is now
+  // sized to land on exactly 0 at b1QuietAt.
+  const lwRecoil = impactOffset(frame, b1ImpactHit, b1QuietAt - b1ImpactHit, -8, 2); // PRIMARY (Y support)
   // The primary impact now lives on Z: a short anticipation BACKWARD, a
   // fast push toward the viewer, one small counter, then a settle onto
   // ACTIVE. Depth is what makes the hit land, so the frame barely has to
   // move at all — which is the whole reason the camera amplitudes below
   // could come down.
-  const lwZ = smoothKeys(
-    easeProgress(frame, b1ImpactStart, b1ImpactStart + b1ImpactDur + 8, easeCamera),
-    [0, 0.16, 0.6, 0.82, 1],
-    [-90, -145, 205, 132, PLANE.active],
-  );
-  const istNichtRecoil = impactOffset(frame, b1ImpactHit + 1, 9, -7); // nearest + lightest
-  const markeRecoil = impactOffset(frame, b1ImpactHit + 2, 10, -4.5);
-  const deineRecoil = impactOffset(frame, b1ImpactHit + 4, 10, -3.5); // furthest + heaviest
+  // Settles at f43 and then holds absolutely still. It used to creep from
+  // 1.067 to 1.053 all the way to f54 — under half a percent, but it meant
+  // the title was never actually at rest when the takeover started.
+  //
+  // From f46 it eases BACKWARD once, in one direction, and that motion runs
+  // straight into the red expansion: anticipation handing off to
+  // acceleration, rather than a decay overlapping a transition.
+  const lwZ =
+    smoothKeys(
+      easeProgress(frame, b1ImpactStart, 43, easeCamera),
+      [0, 0.16, 0.6, 0.82, 1],
+      [-90, -145, 205, 132, PLANE.active],
+    ) - interpolate(easeProgress(frame, 46, 51, easeInOutCubic), [0, 1], [0, 30]);
+  // Secondary reactions: a single smooth excursion each, no counter-swing at
+  // all, so there is not one sign change anywhere in the frame.
+  const istNichtRecoil = impactOffset(frame, b1ImpactHit + 1, b1QuietAt - b1ImpactHit - 1, -7, 1); // nearest + lightest
+  const markeRecoil = impactOffset(frame, b1ImpactHit + 1.6, b1QuietAt - b1ImpactHit - 1.6, -4.5, 1);
+  const deineRecoil = impactOffset(frame, b1ImpactHit + 2.4, b1QuietAt - b1ImpactHit - 2.4, -3.5, 1); // furthest + heaviest
   // Anticipation: a single 3% compression before the hit, not an oscillation.
   const anticAmt = impactOffset(frame, b1ImpactHit - 7, 7, 0.03, 1);
 
@@ -315,7 +338,10 @@ export const OffscriptReel: React.FC = () => {
   //   NICHT DURCH.  lands        -> DOWN, the closing weight
   // =========================================================================
   const cameraImpacts: Impact[] = [
-    {start: b1ImpactHit, duration: 9, x: -2, y: 3.5, rotate: 0.12, cycles: 3},
+    // Single lobe, smaller, and finished a clear two frames before the red
+    // field appears. The Z push is what makes this impact land; the camera
+    // only has to confirm it, and during a takeover it should barely exist.
+    {start: b1ImpactHit, duration: b1QuietAt - b1ImpactHit - 2, x: -1.2, y: 2.2, rotate: 0.05, cycles: 1},
     {start: b3HitStart + 2, duration: 8, x: -2.5, y: 1, rotate: 0.05},
     {start: b5MetricStart + b5RollDur, duration: 9, scale: 0.006, y: 2},
     {start: b6Line2Start + 11, duration: 8, x: 1.5, y: 4, rotate: 0.1},
