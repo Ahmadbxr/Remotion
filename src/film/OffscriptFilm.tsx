@@ -128,16 +128,24 @@ const getHero = (frame: number, fps: number): HeroState => {
 // every child's percentage-based positioning still resolves against the
 // same 1080x1920 box — the transform only scales the final paint, so nothing
 // inside needs to know the camera exists.
+const TRANSITION_START = T.serviceStep - T.serviceTransitionFrames;
+const serviceAbsStart = (index: number) => T.serviceStart + index * T.serviceStep;
+
 const CAMERA_BEATS = [
   T.pillToRule, // pill collapsing to a rule
-  T.headlineHold, // headline dispersing into the card-forming beat
+  T.headlineHold, // headline dispersing into the card-forming beat — the
+  // typography's own exit velocity is what the camera is riding here
   T.servicesCardIn, // arriving into the services section
+  // Every service-to-service handoff now gets its own camera beat too —
+  // this is the mechanism that makes the section read as ONE continuous
+  // push-through relay rather than six independent card transitions.
+  ...[0, 1, 2, 3, 4].map((i) => serviceAbsStart(i) + TRANSITION_START),
   T.servicesEnd - T.serviceTransitionFrames, // the last service handing off to the camera-push exit
   T.compressStart, // the rule compressing before it stretches into the logo's line
   T.logoIn, // the logo itself arriving
 ];
-const CAMERA_PULSE_DURATION = 16;
-const CAMERA_PULSE_AMOUNT = 0.022;
+const CAMERA_PULSE_DURATION = 13;
+const CAMERA_PULSE_AMOUNT = 0.03;
 
 const cameraScaleAt = (frame: number): number => {
   let bump = 0;
@@ -181,9 +189,6 @@ const SERVICE_TRANSITIONS: TransitionKind[] = ['flip', 'scroll', 'flip', 'morph'
 // it's already partway built by the time it settles into place — no dead
 // gap where the card has visibly arrived but shows nothing yet.
 const BUILD_LEN = 18;
-const TRANSITION_START = T.serviceStep - T.serviceTransitionFrames; // 60
-
-const serviceAbsStart = (index: number) => T.serviceStart + index * T.serviceStep;
 
 const iconBuildStart = (index: number) => (index === 0 ? serviceAbsStart(0) : serviceAbsStart(index) - T.serviceTransitionFrames);
 
@@ -246,14 +251,17 @@ const SFX_CUES: SfxCue[] = [
     volume: index === 4 ? 0.4 : 0.38,
   })),
 
-  // Word-wave rhythmic accents — the same icon-lock ping, reused at a much
-  // lower volume as a barely-audible tick: only on the FIRST word of each
-  // sentence and its EMPHASIS word, never one sound per word (that would
-  // read as a chattering counter, not a rhythm). Frames mirror the exact
-  // KineticWords timing below (enterStart + rank*stagger + wordDuration).
-  {frame: T.headlineIn + 13, file: 'icon-lock.wav', volume: 0.14},
-  {frame: T.headlineIn + 5 * 2 + 3 + 13, file: 'icon-lock.wav', volume: 0.2},
-  {frame: T.logoSettled + 16 + 3 * 2 + 3 + 13, file: 'icon-lock.wav', volume: 0.2},
+  // Kinetic-typography rhythmic accents — the same icon-lock ping, reused
+  // at a low volume as a barely-audible tick-tick-IMPACT: the first group
+  // to settle gets a soft tick, the EMPHASIS group (the word that carries
+  // the message) gets a louder impact. Never one sound per group — that
+  // would read as a chattering counter, not a rhythm. Frames mirror the
+  // exact KineticWords group timing below (enterStart + rank*stagger +
+  // wordDuration; wordStagger=2, wordDuration=11 are the component defaults).
+  {frame: T.headlineIn + 11, file: 'icon-lock.wav', volume: 0.14}, // first group ("DAS BESTE") settles
+  {frame: T.headlineIn + 3 * 2 + 2 + 11, file: 'icon-lock.wav', volume: 0.22}, // emphasis ("SCRIPT") — the impact
+  {frame: T.logoSettled + 16 + 11, file: 'icon-lock.wav', volume: 0.14}, // tagline first-settling group
+  {frame: T.logoSettled + 16 + 2 * 2 + 2 + 11, file: 'icon-lock.wav', volume: 0.22}, // tagline emphasis ("SCRIPT")
 
   // Metric pulses — one distinct variant per stat, on arrival.
   {frame: T.statsStart + 20, file: 'metric-pulse-1.wav', volume: 0.5},
@@ -396,9 +404,18 @@ const ServiceIcon: React.FC<{index: number; buildProgress: number; frame: number
 // of progress) plays around the CardFace's own true center — the same
 // treatment for every icon, applied once, here, instead of duplicated per
 // icon branch.
-const CardFace: React.FC<{children: React.ReactNode; buildProgress?: number}> = ({children, buildProgress = 1}) => {
+const CardFace: React.FC<{children: React.ReactNode; buildProgress?: number; frame?: number}> = ({
+  children,
+  buildProgress = 1,
+  frame = 0,
+}) => {
   const lockT = interpolate(buildProgress, [0.86, 1], [0, 1], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
   const lockScale = interpolate(lockT, [0, 0.45, 0.8, 1], [1, 1.04, 0.995, 1], {extrapolateRight: 'clamp'});
+  // A tiny continuous idle rotation, independent of (and much faster than)
+  // the hero shape's own breathing scale — this is what keeps a fully-built
+  // icon from reading as a dead bitmap during its hold, without adding any
+  // new visual element to the frame.
+  const idleRotate = Math.sin(frame * 0.08) * 0.9;
   return (
     <div
       style={{
@@ -407,7 +424,7 @@ const CardFace: React.FC<{children: React.ReactNode; buildProgress?: number}> = 
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        transform: `scale(${lockScale})`,
+        transform: `scale(${lockScale}) rotate(${idleRotate}deg)`,
         transformOrigin: '50% 50%',
       }}
     >
@@ -513,7 +530,7 @@ export const OffscriptFilm: React.FC = () => {
           position: 'absolute',
           left: '50%',
           top: '50%',
-          transform: `translate(-50%, -50%) translateY(${hero.y + settleDrift}px) scale(${microDrift(frame, fps, 0.013, 0.55, 0)})`,
+          transform: `translate(-50%, -50%) translateY(${hero.y + settleDrift}px) scale(${microDrift(frame, fps, 0.022, 0.5, 0)})`,
         }}
       >
         <MorphingPill
@@ -568,7 +585,7 @@ export const OffscriptFilm: React.FC = () => {
                     transform: isLast ? `scale(${interpolate(finalPush, [0, 1], [1, 1.2])})` : undefined,
                   }}
                 >
-                  <CardFace buildProgress={currentBuild}>{currentIcon}</CardFace>
+                  <CardFace buildProgress={currentBuild} frame={frame}>{currentIcon}</CardFace>
                 </div>
               )}
 
@@ -580,8 +597,8 @@ export const OffscriptFilm: React.FC = () => {
                     width={240}
                     height={220}
                     axis={stage.index % 2 === 0 ? 'Y' : 'X'}
-                    outgoing={<CardFace buildProgress={currentBuild}>{currentIcon}</CardFace>}
-                    incoming={<CardFace buildProgress={nextBuild}>{nextIcon}</CardFace>}
+                    outgoing={<CardFace buildProgress={currentBuild} frame={frame}>{currentIcon}</CardFace>}
+                    incoming={<CardFace buildProgress={nextBuild} frame={frame}>{nextIcon}</CardFace>}
                   />
                 </div>
               )}
@@ -603,7 +620,7 @@ export const OffscriptFilm: React.FC = () => {
                         transform: scrollTransform(iconOut),
                       }}
                     >
-                      <CardFace buildProgress={currentBuild}>{currentIcon}</CardFace>
+                      <CardFace buildProgress={currentBuild} frame={frame}>{currentIcon}</CardFace>
                     </div>
                     <div
                       style={{
@@ -617,7 +634,7 @@ export const OffscriptFilm: React.FC = () => {
                         transform: scrollTransform(iconIn),
                       }}
                     >
-                      <CardFace buildProgress={nextBuild}>{nextIcon}</CardFace>
+                      <CardFace buildProgress={nextBuild} frame={frame}>{nextIcon}</CardFace>
                     </div>
                   </>
                 );
@@ -637,7 +654,7 @@ export const OffscriptFilm: React.FC = () => {
                       transform: `scale(${interpolate(stage.transitionProgress, [0, 1], [1, 0.92])})`,
                     }}
                   >
-                    <CardFace buildProgress={currentBuild}>{currentIcon}</CardFace>
+                    <CardFace buildProgress={currentBuild} frame={frame}>{currentIcon}</CardFace>
                   </div>
                   <div
                     style={{
@@ -651,7 +668,7 @@ export const OffscriptFilm: React.FC = () => {
                       transform: `scale(${interpolate(stage.transitionProgress, [0, 1], [1.08, 1])})`,
                     }}
                   >
-                    <CardFace buildProgress={nextBuild}>{nextIcon}</CardFace>
+                    <CardFace buildProgress={nextBuild} frame={frame}>{nextIcon}</CardFace>
                   </div>
                 </>
               )}
@@ -660,33 +677,33 @@ export const OffscriptFilm: React.FC = () => {
         </MorphingPill>
       </div>
 
-      {/* Headline, positioned to align with the rule above it */}
+      {/* Headline, positioned to align with the rule above it. Semantic
+          GROUPS (not per-word): "DAS BESTE" / "PASSIERT," / "SOBALD DAS" /
+          "SCRIPT" / "WEG IST." — five phrases, SCRIPT (index 3) carries the
+          emphasis. A continuous micro-drift keeps the hold alive; it never
+          fully freezes even while the sentence is fully legible. */}
       <div
         style={{
           position: 'absolute',
           left: '50%',
           top: '50%',
-          transform: 'translate(-50%, -50%) translateY(40px)',
+          transform: `translate(-50%, -50%) translateY(40px) scale(${microDrift(frame, fps, 0.016, 0.5, Math.PI / 3)})`,
         }}
       >
         <KineticWords
-          lines={['DAS BESTE PASSIERT,', 'SOBALD DAS SCRIPT WEG IST.']}
+          lines={['DAS BESTE|PASSIERT,', 'SOBALD DAS|SCRIPT|WEG IST.']}
           frame={frame}
           fps={fps}
           enterStart={T.headlineIn}
-          wordStagger={2}
-          wordDuration={13}
           exitStart={T.headlineHold}
-          exitStagger={2}
-          exitDuration={9}
           direction="left-right"
-          emphasisIndex={5}
+          emphasisIndex={3}
           rowHeight={80}
           width={1000}
           fontSize={56}
           fontWeight={800}
           letterSpacing={-1.5}
-          maxBlur={18}
+          maxBlur={28}
         />
       </div>
 
@@ -697,7 +714,7 @@ export const OffscriptFilm: React.FC = () => {
             position: 'absolute',
             left: '50%',
             top: '50%',
-            transform: `translate(-50%, -50%) translateY(${-CARD_H / 2 - 90}px)`,
+            transform: `translate(-50%, -50%) translateY(${-CARD_H / 2 - 90}px) scale(${microDrift(frame, fps, 0.02, 0.6, Math.PI)})`,
           }}
         >
           {!stage.inTransition && (
@@ -794,7 +811,7 @@ export const OffscriptFilm: React.FC = () => {
           position: 'absolute',
           left: '50%',
           top: '50%',
-          transform: `translate(-50%, -50%) scale(${microDrift(frame, fps, 0.011, 0.4, Math.PI / 2)})`,
+          transform: `translate(-50%, -50%) scale(${microDrift(frame, fps, 0.02, 0.45, Math.PI / 2)})`,
           opacity: statsBlockOpacity,
         }}
       >
@@ -803,6 +820,7 @@ export const OffscriptFilm: React.FC = () => {
           fps={fps}
           startFrame={T.statsStart}
           stepFrames={T.statStep}
+          transitionFrames={16}
           width={760}
           slotHeight={260}
           numberFontSize={100}
@@ -821,7 +839,7 @@ export const OffscriptFilm: React.FC = () => {
           position: 'absolute',
           left: '50%',
           top: '50%',
-          transform: `translate(-50%, -50%) translateY(${settleDrift}px) scale(${microDrift(frame, fps, 0.009, 0.35, Math.PI)})`,
+          transform: `translate(-50%, -50%) translateY(${settleDrift}px) scale(${microDrift(frame, fps, 0.016, 0.35, Math.PI)})`,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -838,12 +856,10 @@ export const OffscriptFilm: React.FC = () => {
 
         <div style={{marginTop: 30}}>
           <KineticWords
-            lines={['CONTENT & SOCIAL MEDIA', 'ZÜRICH']}
+            lines={['CONTENT &|SOCIAL MEDIA', 'ZÜRICH']}
             frame={frame}
             fps={fps}
             enterStart={T.logoSettled - 4}
-            wordStagger={2}
-            wordDuration={12}
             direction="left-right"
             rowHeight={30}
             width={420}
@@ -851,20 +867,18 @@ export const OffscriptFilm: React.FC = () => {
             fontWeight={600}
             color={FILM_COLORS.secondary}
             letterSpacing={3}
-            maxBlur={10}
+            maxBlur={14}
           />
         </div>
 
         <div style={{marginTop: 44}}>
           <KineticWords
-            lines={['DAS BESTE PASSIERT,', 'SOBALD DAS SCRIPT WEG IST.']}
+            lines={['DAS BESTE|PASSIERT,', 'SOBALD DAS|SCRIPT|WEG IST.']}
             frame={frame}
             fps={fps}
             enterStart={T.logoSettled + 16}
-            wordStagger={2}
-            wordDuration={13}
             direction="center-out"
-            emphasisIndex={5}
+            emphasisIndex={3}
             rowHeight={44}
             width={620}
             fontSize={30}

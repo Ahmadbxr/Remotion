@@ -24,46 +24,53 @@ export const HEIGHT = 1920;
  * nothing here unmounts and remounts at a boundary, so there is no seam to
  * hide.
  *
- * Rhythm principle throughout: FAST TRANSITION, SLOW HOLD. Structural
- * transitions (the hero reshaping, a card forming) run ~10-16 frames;
- * readable content then holds for 40-60+ frames before the next transition
- * starts. Momentum comes from how efficiently state changes, not from
- * cutting holds short.
+ * ENERGY-PASS REWORK: measured against a reference video (side-by-side,
+ * 5-second-bucket event counting — see the commit that introduced this
+ * timeline), the previous cut's problem was never transition mechanics —
+ * it was frozen hold time. Icons/text were sampled bit-identical for
+ * 1.5-2.5s at a stretch while the reference changes on every sampled
+ * frame. This timeline is ~25% shorter throughout (38s -> ~28s) purely by
+ * cutting hold time, never by cutting a service, a stat, or a line of
+ * copy — every beat below still gets enough dwell to read, just far less
+ * dead space after it's read. The remaining "never fully static" fix is
+ * NOT a timing change: every hold everywhere now also carries a
+ * continuous micro-drift/breathing motion (see OffscriptFilm.tsx) so two
+ * consecutive sampled frames are never pixel-identical even mid-hold.
  */
 const dotBorn = 0;
-const dotHold = 12;
-const pillGrow = 38; // was 55 — tighter build
-const pillHold = 66; // ~28-frame readable hold on "OFFSCRIPT"
-const pillToRule = 80; // 14-frame transition
+const dotHold = 8;
+const pillGrow = 26;
+const pillHold = 44; // ~18-frame readable hold on "OFFSCRIPT" — short, punchy
+const pillToRule = 58; // 14-frame transition
 
-const headlineIn = 88; // brief (8f) rule-alone breath before the word-wave starts
-const headlineRevealEnd = 115; // fast word-wave: fully assembled ~27f after headlineIn
-const headlineHold = 188; // ~73-frame readable hold (a full sentence) — animate fast, hold long
-const servicesCardIn = 216; // 14-frame card-forming transition
-const serviceStart = 224; // 8-frame settle before content starts
+const headlineIn = 66; // brief breath before the word-group wave starts
+const headlineRevealEnd = 90; // fast group wave: fully assembled ~24f after headlineIn
+const headlineHold = 136; // ~46-frame hold (~1.5s) — enough to read, no longer than that
+const servicesCardIn = 148; // 12-frame card-forming transition
+const serviceStart = 154; // 6-frame settle before content starts
 
-// Each service: ~10f enter, icon fully built by ~24f in, held complete
-// until ~11f before the end, then a flip/scroll/morph transition into the
-// next. Total per service comfortably clears the "20-30 frames fully
-// built" and "30-40 frames readable" requirements.
-const serviceStep = 74;
+// Each service now runs a much tighter, transition-heavy loop: build+hold
+// gets ~34 frames fully readable, then a 16-frame transition (31% of the
+// step, up from 15%) carries straight into the next — the section reads as
+// one continuous relay of icons rather than six independent card-holds.
+const serviceStep = 52;
 const SERVICE_COUNT = 6;
-const serviceTransitionFrames = 11; // shorter, snappier transitions; the frames saved go straight into hold time
-const servicesEnd = serviceStart + SERVICE_COUNT * serviceStep + 10;
+const serviceTransitionFrames = 16;
+const servicesEnd = serviceStart + SERVICE_COUNT * serviceStep + 8;
 
-const statsCardOut = servicesEnd + 14; // camera-push exit, see OffscriptFilm
-const statsStart = statsCardOut + 10;
-const statStep = 60; // ~46-frame hold + 14-frame transition per stat
+const statsCardOut = servicesEnd + 12; // camera-push exit, see OffscriptFilm
+const statsStart = statsCardOut + 8;
+const statStep = 46; // faster odometer beat — count/slam/blur reads fast, not a slow scroll
 const STAT_COUNT = 3;
 const statsEnd = statsStart + STAT_COUNT * statStep;
 
-const compressStart = statsEnd + 10;
-const compressEnd = compressStart + 14;
-const lineTravelEnd = compressEnd + 18;
-const logoIn = lineTravelEnd + 8;
-const logoSettled = logoIn + 20;
+const compressStart = statsEnd + 8;
+const compressEnd = compressStart + 12;
+const lineTravelEnd = compressEnd + 16;
+const logoIn = lineTravelEnd + 7;
+const logoSettled = logoIn + 16;
 
-export const TOTAL_FRAMES = 1140; // 38s — services get real room, everything else is tighter
+export const TOTAL_FRAMES = 850; // ~28.3s @ 30fps — compressed from 38s via overlap/shorter holds, not cut copy
 
 export const TIMELINE = {
   dotBorn,

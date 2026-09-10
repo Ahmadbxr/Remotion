@@ -18,7 +18,7 @@ blurred kinetic-type transitions styled after a reference clip.
   (cross-fade), `GlowBackground`, `ViewfinderCard`.
 - `src/theme.ts` — colors, font stack, cross-fade overlap constant.
 
-## `OffscriptFilm` — premium light editorial brand film (38s, German)
+## `OffscriptFilm` — premium light editorial brand film (~28s, German)
 
 A continuous-motion brand film in the site's own light palette (`#F5F3EF`
 off-white, near-black ink, red accent used sparingly) with the real
@@ -27,7 +27,7 @@ agency's real performance numbers. All copy is German, kept intentionally
 short — this is a brand film, not an explainer.
 
 Architecture is built around **one persistent hero shape** (`<MorphingPill>`,
-mounted for all 1140 frames — dot → pill → thin red rule → services card →
+mounted for all 850 frames — dot → pill → thin red rule → services card →
 rule → collapses → travels to the logo's exact position) plus a small set of
 always-mounted `<MaskText>` blocks for every piece of copy. Nothing in the
 timeline conditionally mounts/unmounts at a scene boundary: every property
@@ -62,24 +62,47 @@ scale-pulse (`cameraScaleAt`, ~2.2% at its peak) breathes at each major
 scene boundary — motivated by, and only by, an actual transition, never a
 random ambient zoom.
 
-**Typography's primary motion language is word-by-word, not full-line.**
-`<KineticWords>` splits a sentence into words and assembles it as a fast
-traveling wave — 2-frame stagger between words, each word's own ~13-frame
-settle, so an 8-word sentence is fully legible within about half a second
-while still visibly rippling into place. Every word gets one controlled
-overshoot (position + scale together) and the same velocity-measured blur
-as everything else in the project — each word's y-position is compared
-frame-to-frame, so a fast-moving word blurs and a settled one is
-pin-sharp, automatically. Exits reverse the wave direction and run faster
-than entrances. One word per sentence can be marked as `emphasisIndex` for
-a slightly delayed, stronger settle — used on "SCRIPT" in both the
-headline and the closing tagline, the punchline word in each. Direction
-(`left-right`, `center-out`, etc.) reorders which word animates first
-without ever moving a word out of its natural reading position
-horizontally. Used for the headline, the closing tagline, and the
-subtext line; single-word labels (the pill, each service name) stay on
-`<MaskText>`, just tuned for more energy (larger overshoot, higher blur
-ceiling) than before.
+**Typography's primary motion language is word-GROUP kinetic typography,
+not per-word and not full-line.** `<KineticWords>` splits a sentence into
+*semantic phrases* (author-marked with `|` — "DAS BESTE|PASSIERT,|SOBALD
+DAS|SCRIPT|WEG IST.", not "DAS|BESTE|PASSIERT,|…") and assembles it as a
+fast traveling wave of those phrases — 2-frame stagger between groups,
+each group's own ~11-frame settle, so a 5-group sentence is fully legible
+in under half a second. Staggering whole phrases instead of individual
+words was a deliberate choice: per-word stagger reads as a mechanical
+typewriter effect, phrase-level stagger reads as an editorial kinetic cut.
+Every group gets one controlled overshoot on Y, X, *and* scale together
+(strong displacement — up to ±70px Y, ±80px X, scale swinging as low as
+0.88 and as high as ~1.08 at the overshoot peak, always settling back to
+exactly 1) plus the same velocity-measured blur as everything else in the
+project, now with a higher ceiling (18-28px depending on the text's role)
+so a fast-entering phrase visibly blurs and a settled one is pin-sharp,
+automatically. Exits reverse the wave direction and run faster than
+entrances. One phrase per sentence can be marked as `emphasisIndex` for a
+slightly delayed, stronger settle and the biggest scale swing — used on
+"SCRIPT" in both the headline and the closing tagline, the punchline
+phrase in each. Direction (`left-right`, `center-out`, etc.) reorders
+which phrase animates first without ever moving a phrase out of its
+natural reading position horizontally. Used for the headline, the closing
+tagline, and the subtext line; single-word labels (the pill, each service
+name) stay on `<MaskText>`.
+
+A real bug surfaced building this: a plain `' '` (and even a non-breaking
+`' '`) placed as the last character *inside* a group's own
+`<span>` reliably vanished with zero width once that span also carried a
+permanent (bugged) resting `scale()` slightly above 1 — the symmetric
+scale growth from `transformOrigin: '50% 100%'` ate the gap from both
+sides. Diagnosed with a throwaway `outline`/`background` on each span to
+see the true box geometry, which showed the boxes flush against each
+other with no separating margin at all. The actual fix was two-part: (1)
+stop relying on a text-node character for the gap at all — use an
+explicit `marginRight: fontSize * 0.28` on every group but the last
+instead; (2) fix `enterScale`'s overshoot to actually **settle at exactly
+1** (`withOvershoot(enterP, from, 1, overshootFraction)`), not at a
+permanently-inflated "to" value — the peak during the bounce differs by
+emphasis, the rest state never does. Verified by rendering full-resolution
+stills of the exact hold frame and reading the text directly, not just
+scanning thumbnails.
 
 **Motion vocabulary**: five service-to-service boundaries rotate through
 `flip` (`<FlipTransition>`, a restrained ~85° 3D card flip, not a 180° spin),
@@ -264,6 +287,90 @@ is meaningfully more genuine frame-to-frame change to encode. Actually
 *watching* the render in real time and judging its energy against a
 reference clip is a human judgment call this process can't substitute
 for — the rendered file is the deliverable for that, not this checklist.
+
+**A creative-direction reversal pass** retired "Apple-style minimalism" as
+the motion-energy benchmark (it was making the film read as UI/presentation
+animation, not a kinetic motion-design brand film) in favor of a
+user-supplied reference video, while keeping the *current* film as the only
+reference for visual identity, copy, colors, and brand design. Per the
+brief's explicit "do not guess" requirement, the reference was actually
+located on disk, `ffprobe`-verified (37s/30fps/16:9), and sampled at 4fps
+into per-5-second-bucket contact sheets — matched against equal-density
+buckets from the *current* render — before any code changed. That
+side-by-side found the real gap was never transition mechanics: it was
+frozen hold time. Buckets from the previous cut showed 10+ consecutive
+sampled frames bit-identical (a headline sitting fully static for 2.44s, a
+service icon frozen for 2s+) while the reference changes on *every*
+sampled frame. Root cause, not symptom: the fix here is not "more
+transitions," it's cutting how long anything sits doing nothing.
+
+Concretely:
+- **Timeline compressed 1140 → 850 frames (38s → ~28s)**, entirely by
+  cutting hold duration and tightening transition windows throughout
+  `theme.ts` — no copy, no service, no stat was cut. The services section
+  in particular went from a 74-frame step (15% transition / 85% hold) to a
+  52-frame step (31% transition / 69% hold), so the section now reads as a
+  continuous relay of six icons rather than six independent card-holds.
+- **Typography rebuilt around semantic word-groups** (see above) instead of
+  per-word stagger — faster, stronger, and it no longer looks mechanical.
+- **Nothing is ever allowed to be pixel-static anymore.** Every wrapper that
+  previously had zero motion during its own hold (the headline, the service
+  label) now carries the same phase-varied `microDrift` breathing scale the
+  hero/stats/logo layers already had, at a slightly higher amplitude
+  (0.016-0.022 vs. the original 0.009-0.013). `CardFace` (every service
+  icon) additionally got its own tiny continuous idle rotation
+  (`±0.9°`, `sin(frame * 0.08)`), independent of and faster than the
+  hero's breathing, so a fully-built icon is never a dead bitmap during its
+  hold.
+- **Camera-push language extended to every service-to-service boundary**
+  (previously only a few major beats), reinforced with a shorter, snappier
+  pulse (16→13 frames, 0.022→0.03 peak amount) — this is the mechanism that
+  makes the services section read as one continuous push-through sequence
+  rather than six separate transitions, without redesigning the cards
+  themselves.
+- **Motion blur ceilings raised** across the board: `FlipTransition`/
+  `ScrollTransition` icon blur 7px→13px (with bigger rotation/travel
+  distances to actually earn it), the headline's `KineticWords` maxBlur
+  18px→28px, `StatOdometer`'s handoff blur replaced with a real
+  velocity-driven "slam" (up to 26px, via the same `getMotionBlur` every
+  other blur value in the project goes through — not a new hand-authored
+  curve).
+- **`StatOdometer` rebuilt as a higher-energy event**: the outgoing number
+  now shrinks harder and blurs on a real measured shift-velocity (a "slam,"
+  not a fade), the incoming number overshoots further (1.22→1) before a
+  harder settle, and `statStep` dropped 60→46 frames so the three stats
+  read as three fast hits, not a slow scroll.
+- **Overshoot diversified rather than applied everywhere uniformly**:
+  `FlipTransition`'s incoming face now settles with a much smaller
+  overshoot fraction (0.07→0.03, an intentional near-hard-stop) while its
+  rotation/travel got faster and further — variation in *how* something
+  settles (spring-bounce vs. hard-stop vs. soft-decelerate) is the
+  sophistication the brief asked for, not overshoot on every single motion.
+
+What this pass deliberately did **not** attempt, and why: a literal
+typography-as-transition-mask system (a word's glyph shape becoming a wipe
+mask for the next scene) and a fully de-centered/editorial compositional
+layout (off-center, full-frame, extreme-scale shots) were both judged too
+structurally risky for the existing single-centered-hero-column
+architecture to absorb safely in one pass — CREATOR's deterministic
+centering and the no-seam hero shape both depend on that column staying
+centered. Instead, the headline's *exit* motion was strengthened and its
+peak blur/scale deliberately timed to land on the same camera beat as the
+services section's arrival, so the typography's own exit velocity is what
+the camera-push reads as motivating — a scoped, lower-risk way to get at
+"typography causes the next shot" without touching the centering
+architecture. This is a known, honest scope limit, not an oversight.
+
+Verified the same way as every prior pass — rendered stills and per-bucket
+contact sheets at matching sample density, full-resolution stills at exact
+hold frames (which is what caught the `KineticWords` spacing bug above),
+and a direct re-comparison of the same 5-second buckets against the
+pre-pass render, which now show continuous per-sample change throughout
+instead of long stretches of identical frames. The same honest caveat as
+every pass before it: this process cannot literally watch the render in
+real time and judge perceived energy against the reference the way a human
+can — the rendered file is the deliverable for that judgment call, not this
+checklist.
 
 ## Usage
 

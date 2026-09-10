@@ -19,8 +19,8 @@ type Props = {
 // Icons get a much lighter motion blur than text, and only while the whole
 // face is spatially moving (rotating/lifting) — never while its own paths
 // are being drawn.
-const MAX_ROT_VELOCITY = 9;
-const MAX_ICON_BLUR = 7;
+const MAX_ROT_VELOCITY = 11;
+const MAX_ICON_BLUR = 13;
 
 /**
  * A restrained 3D card flip — not a 180° PowerPoint spin. The outgoing face
@@ -49,16 +49,19 @@ export const FlipTransition: React.FC<Props> = ({
   const p = Math.min(Math.max(progress, 0), 1);
   const pPrev = Math.min(Math.max(progressPrev ?? progress, 0), 1);
 
-  const outRot = interpolate(p, [0, 1], [0, -85]);
-  const outRotPrev = interpolate(pPrev, [0, 1], [0, -85]);
-  const outTranslateY = interpolate(p, [0, 1], [0, -14]);
-  const outScale = interpolate(p, [0, 1], [1, 0.92]);
+  const outRot = interpolate(p, [0, 1], [0, -92]);
+  const outRotPrev = interpolate(pPrev, [0, 1], [0, -92]);
+  const outTranslateY = interpolate(p, [0, 1], [0, -22]);
+  const outScale = interpolate(p, [0, 1], [1, 0.88]);
   const outBlur = getMotionBlur(outRot - outRotPrev, MAX_ROT_VELOCITY, MAX_ICON_BLUR);
 
-  const inRot = withOvershoot(p, 85, 0, 0.07);
-  const inRotPrev = withOvershoot(pPrev, 85, 0, 0.07);
-  const inTranslateY = withOvershoot(p, 24, 0, 0.22);
-  const inScale = interpolate(p, [0, 1], [0.88, 1]);
+  // Hard-stop settle, not an overshoot: variation in HOW things settle
+  // (some transitions bounce, this one arrives and simply stops) is what
+  // reads as sophistication rather than "overshoot everywhere."
+  const inRot = withOvershoot(p, 92, 0, 0.03);
+  const inRotPrev = withOvershoot(pPrev, 92, 0, 0.03);
+  const inTranslateY = withOvershoot(p, 34, 0, 0.16);
+  const inScale = interpolate(p, [0, 1], [0.84, 1]);
   const inBlur = getMotionBlur(inRot - inRotPrev, MAX_ROT_VELOCITY, MAX_ICON_BLUR);
 
   const outOpacity = interpolate(p, [0, 0.5, 0.62], [1, 1, 0], {extrapolateRight: 'clamp'});

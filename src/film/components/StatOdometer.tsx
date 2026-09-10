@@ -1,7 +1,7 @@
 import React from 'react';
 import {interpolate} from 'remotion';
 import {FILM_COLORS, FILM_FONT, FILM_MONO} from '../theme';
-import {morphProgress, withOvershoot, OFFSCRIPT_FAST} from '../springs';
+import {morphProgress, withOvershoot, getMotionBlur, OFFSCRIPT_FAST} from '../springs';
 
 type Stat = {value: string; label: string};
 
@@ -32,7 +32,7 @@ export const StatOdometer: React.FC<Props> = ({
   fps,
   startFrame,
   stepFrames,
-  transitionFrames = 14,
+  transitionFrames = 16,
   stats,
   width,
   slotHeight,
@@ -48,11 +48,21 @@ export const StatOdometer: React.FC<Props> = ({
     stage < stats.length - 1
       ? morphProgress(frame, startFrame + stage * stepFrames + holdFrames, startFrame + (stage + 1) * stepFrames, fps, OFFSCRIPT_FAST)
       : 0;
+  const shiftProgressPrev =
+    stage < stats.length - 1
+      ? morphProgress(frame - 1, startFrame + stage * stepFrames + holdFrames, startFrame + (stage + 1) * stepFrames, fps, OFFSCRIPT_FAST)
+      : 0;
 
   const offset = -(stage + shiftProgress) * slotHeight;
 
-  const enter = morphProgress(frame, startFrame, startFrame + 20, fps);
-  const entranceBlur = interpolate(enter, [0, 1], [8, 0]);
+  // The number itself accelerates then slams into crisp focus: a fast
+  // velocity-driven blur spike right at the moment it locks (not a slow
+  // fade) is what makes a stat read as a hit rather than a scroll.
+  const shiftVelocity = Math.abs(shiftProgress - shiftProgressPrev);
+  const slamBlur = getMotionBlur(shiftVelocity, 0.09, 26);
+
+  const enter = morphProgress(frame, startFrame, startFrame + 14, fps);
+  const entranceBlur = interpolate(enter, [0, 1], [22, 0]);
   const entranceOpacity = interpolate(enter, [0, 1], [0, 1]);
 
   return (
@@ -69,16 +79,16 @@ export const StatOdometer: React.FC<Props> = ({
         {stats.map((stat, i) => {
           const isOutgoing = i === stage && shiftProgress > 0;
           const isIncoming = i === stage + 1 && shiftProgress > 0;
+          // Outgoing: accelerates away and abstracts into the transition
+          // (bigger shrink, real blur) rather than a gentle fade — this IS
+          // the number's own exit motivating the next one, not a cut.
+          // Incoming: overshoots big and hard-slams to rest at 1.
           const scale = isOutgoing
-            ? interpolate(shiftProgress, [0, 1], [1, 0.92])
+            ? interpolate(shiftProgress, [0, 1], [1, 0.8])
             : isIncoming
-              ? withOvershoot(shiftProgress, 1.08, 1, 0.2)
+              ? withOvershoot(shiftProgress, 1.22, 1, 0.1)
               : 1;
-          const blockBlur = isOutgoing
-            ? interpolate(shiftProgress, [0, 1], [0, 3])
-            : isIncoming
-              ? interpolate(shiftProgress, [0, 1], [3, 0])
-              : 0;
+          const blockBlur = isOutgoing || isIncoming ? slamBlur : 0;
 
           return (
             <div
