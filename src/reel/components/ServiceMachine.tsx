@@ -44,6 +44,11 @@ type Props = {
    *  process line), so only the marker lives here. */
   markerExit?: number;
   markerEnter?: number;
+  /** A slow forward creep across the whole beat — the camera drifting
+   *  through the service system rather than watching it from a fixed spot.
+   *  Added to every row's plane, so the surface keeps its internal depth
+   *  relationships while the whole thing comes toward the viewer. */
+  driftZ?: number;
 };
 
 /**
@@ -76,6 +81,7 @@ export const ServiceMachine: React.FC<Props> = ({
   fontSize = 132,
   markerEnter,
   markerExit,
+  driftZ = 0,
 }) => {
   const n = services.length;
   const viewportH = Math.round(rowHeight * 1.5);
@@ -113,7 +119,26 @@ export const ServiceMachine: React.FC<Props> = ({
         }}
       />
 
-      <div style={{position: 'absolute', left: 46, top: 0, width: width - 46, height: viewportH, overflow: 'hidden'}}>
+      {/* The window masks VERTICALLY — that is what makes the surface read
+          as scrolling through a viewport. It must not mask horizontally, and
+          `overflow: hidden` cannot do one without the other: setting one
+          axis to hidden forces the other to clip too. So the vertical mask
+          is a clip-path with the right edge pushed well outside the box.
+          This is what was cutting the service icons: each row is scaled
+          about its LEFT edge by its depth plane, so the icon pinned to the
+          row's right end was carried 36px past the mask on the ACTIVE row
+          (and only the active row, which is why it looked like a bug rather
+          than a layout constant). */}
+      <div
+        style={{
+          position: 'absolute',
+          left: 46,
+          top: 0,
+          width: width - 46,
+          height: viewportH,
+          clipPath: 'inset(0px -360px 0px 0px)',
+        }}
+      >
         <div
           style={{
             position: 'absolute',
@@ -139,7 +164,8 @@ export const ServiceMachine: React.FC<Props> = ({
             const rowOpacity = interpolate(d, [0, 1], [1, 0.3], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
             const rowZ =
               interpolate(d, [0, 1], [PLANE.active, PLANE.secondary], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'}) +
-              (rel < 0 ? -20 : 0);
+              (rel < 0 ? -20 : 0) +
+              driftZ;
 
             // The icon builds itself as its row becomes dominant — driven by
             // absolute frame so it is monotonic and never un-draws.
@@ -170,7 +196,7 @@ export const ServiceMachine: React.FC<Props> = ({
                   transformOrigin: '0% 50%',
                 }}
               >
-                <div style={{position: 'absolute', left: 0, top: 30, fontFamily: MONO, fontSize: 24, fontWeight: 700, letterSpacing: 2.5, color: BRAND.red}}>
+                <div style={{position: 'absolute', left: 0, top: 30, fontFamily: MONO, fontSize: 24, fontWeight: 700, letterSpacing: 2.5, color: BRAND.red, transform: depth(-24), transformOrigin: '0% 50%'}}>
                   {`0${i + 1}/0${n}`}
                 </div>
                 <div
@@ -189,7 +215,20 @@ export const ServiceMachine: React.FC<Props> = ({
                 >
                   {service.label}
                 </div>
-                <div style={{position: 'absolute', right: 10, top: 46, transform: 'scale(0.66)', transformOrigin: '100% 0%'}}>
+                {/* Inset from the row's right end, not pressed against it,
+                    so the icon reads as deliberately right-aligned and keeps
+                    a 54px margin to the content-safe edge even at the active
+                    row's full depth scale. It also sits a little forward of
+                    the row it belongs to — the icon is the row's payoff. */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    right: 96,
+                    top: 42,
+                    transform: `scale(0.66) ${depth(28)}`,
+                    transformOrigin: '100% 0%',
+                  }}
+                >
                   <AnimatedIcon kind={service.kind} progress={iconP} />
                 </div>
               </div>

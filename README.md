@@ -839,6 +839,80 @@ unfurl), each a clean accelerate/peak/decelerate bell. All 600 frames were
 checked against the safe zones: no information crosses, and everything
 flagged is either 1px antialiasing or genuinely decorative motion.
 
+### Camera choreography pass
+
+Five camera events in twenty seconds, and a service-icon bug fix.
+
+**The icon clipping had a specific cause.** Each service row is scaled by its
+depth plane about the row's LEFT edge, so the icon pinned to the row's right
+end was carried 36px past the mask — and only on the ACTIVE row, which is why
+it read as a bug rather than a layout constant. Two fixes: the icon is inset
+to `right: 96` (a 54px margin to the content-safe edge even at full depth
+scale, so it reads as deliberately right-aligned rather than pressed against
+the viewport), and the window's `overflow: hidden` is replaced with
+`clip-path: inset(0 -360px 0 0)`. The window has to mask vertically — that is
+what makes the surface read as scrolling — and `overflow` cannot do one axis
+without the other. Verified: rightmost service ink is x=943 across the whole
+beat, against a safe edge of 1008.
+
+**Only two of the five moves are dolly moves**, and both are pass-throughs
+where the typography is meant to exceed the viewport. A dolly carries
+everything away from its focal point, so using one anywhere else marches the
+headline straight out of the safe area it was verified into. The other three
+moves are expressed through the depth system — layers receding or advancing
+in Z, which changes their size without touching the frame's edges:
+
+| # | move | technique |
+|---|---|---|
+| 01 | the hook approaches LANGWEILIG. and passes into the red | dolly |
+| 02 | the problem recedes; OFFSCRIPT is the larger picture | depth |
+| 03 | an almost invisible creep forward through the services | depth |
+| 04 | the process builds, then the camera reaches 100K+ | depth + dolly |
+| 05 | the endcard settles, and then nothing moves at all | depth |
+
+**The camera is exactly identity when it is not moving** — no transform
+property at all, not `scale(1)`. This mattered more than expected. The
+opening approach was first written to drift from 1.00 to 1.03 and hold there
+through the read. Constant, so it looked still — but it was resampling every
+glyph onto non-integer positions every frame, the encoder stopped emitting
+identical blocks, and whole-frame motion energy across the LANGWEILIG.
+stillness window went from 0.000 to a steady 0.311. That is the same shimmer
+this project has already chased down twice, arriving through a new door. The
+approach now starts at 0.94 and ARRIVES at exactly 1.0 as the hook lands, so
+the rig drops its transform and f40-f45 measure 0.000 again.
+
+That forces one deliberate deviation from the brief: it asks for camera
+velocity to rise as LANGWEILIG. appears. It rises eight frames later
+instead — the same brief asks harder for that word not to shimmer, and for
+the camera to settle where there is something to read.
+
+**Depth gain** (`depthGain`) is what stops a push from being a flat scale on
+everything: as the camera closes in, near planes grow faster than far ones,
+as they would through a real lens. It is 1 while the camera is at rest, so a
+still camera changes nothing about the layout it is looking at.
+
+**Blur** rides camera velocity and is structurally 0 at rest, peaking only
+during the two pass-throughs.
+
+**Also fixed in QC:** raising the red panel's scaleY to 21 (to guarantee
+coverage under the dolly reset) meant it no longer cleared the frame during
+the wipe, leaving a 20px red band that vanished in one frame — the wipe's
+graded tail became a 16.4-to-0.198 cliff. Reverted to 19 and the reset
+retimed to finish at f66, before the wipe's first frame, so the revealing
+edge travels at exactly the speed it was choreographed to.
+
+**Checked, not assumed:** the rectangular mass behind FALL AUF during the
+100K+ pass looked at thumbnail size like the container artifact that was
+fixed two passes ago. At full resolution it is a soft organic glow from the
+blurred glyphs passing through frame, diffuse in every direction, with a
+gradual edge profile (22.5 -> 23.3 -> 24.3 across the boundary). No hard
+edge, no clipping. Item 17 holds.
+
+**Verified:** LANGWEILIG. stillness window back to 0.000; endcard reaches
+0.000 and holds; no camera shake anywhere (the impact list has no entry in
+the opening at all); all 600 frames re-checked against the safe zones with
+the two intended pass-through crops excluded — no information crosses.
+
 ## Usage
 
 ```bash

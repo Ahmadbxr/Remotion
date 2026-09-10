@@ -17,6 +17,7 @@ import {smoothKeys} from './motion/curves';
 import {Impact, impactOffset, impactTransform} from './motion/physics';
 import {motionBlur, velocityStretch} from './motion/velocity';
 import {CameraRig} from './components/CameraRig';
+import {CameraMove, cameraAt, depthGain} from './motion/camera';
 import {MorphRule} from './components/MorphRule';
 import {PLANE, depth, depthScale} from './motion/depth';
 import {SURFACE, TONE, blendTone} from './motion/palette';
@@ -101,7 +102,9 @@ export const OffscriptReel: React.FC = () => {
   const b1BoxSX = interpolate(easeProgress(frame, 47, 63, easeCamera), [0, 1], [1, 1.5]);
   const b1BoxSY = interpolate(easeProgress(frame, 49, 65, easeCamera), [0, 1], [1, 19]);
   const b1Consumed = easeProgress(frame, 46, 58, easeInOutCubic); // the rest of the type is swallowed by the red
-  const b1LwFade = easeProgress(frame, 58, 66, easeInOutCubic);
+  // Gone by f60, before the dolly pulls back — otherwise the word would be
+  // visibly shrinking as the camera resets.
+  const b1LwFade = easeProgress(frame, 52, 60, easeInOutCubic);
   // The lift-off, retimed. On easeInCubic the revealing bottom edge crawled
   // for eight frames (0.9px, 6px, 17px...) and then covered 300, 360 and
   // 427px on the last three — so the reveal, which is the whole point of
@@ -297,7 +300,77 @@ export const OffscriptReel: React.FC = () => {
     paperGrow > 0.999 ? SURFACE.paper : navyGrow > 0.999 ? SURFACE.navy : redGrow > 0.999 ? SURFACE.red : SURFACE.paper;
 
   // =========================================================================
-  // THE CAMERA — four moments in twenty seconds, and not one of them is
+  // CAMERA CHOREOGRAPHY — five moves in twenty seconds.
+  //
+  // Only TWO of them are dolly moves, and both are pass-throughs where the
+  // typography is meant to exceed the viewport. A dolly carries everything
+  // away from its focal point, so using one anywhere else would march the
+  // headline straight out of the safe area it was verified into. The other
+  // three moves are expressed through the depth system instead: layers
+  // receding or advancing in Z, which changes their size without touching
+  // the frame's edges.
+  //
+  //   01  PUSH      the hook approaches LANGWEILIG. and passes into the red
+  //   02  PULL OUT  the problem recedes; OFFSCRIPT is the larger picture
+  //   03  DRIFT     an almost invisible creep forward through the services
+  //   04  BUILD     the process accelerates, then the camera reaches 100K+
+  //   05  ARRIVE    the endcard settles, and then nothing moves at all
+  //
+  // Between them the camera is EXACTLY identity — no transform property at
+  // all, so no glyph in the Reel is sitting on a composited layer being
+  // resampled while it should be still.
+  // =========================================================================
+  const cameraMoves: CameraMove[] = [
+    // 01a — the camera starts back off the composition and moves forward
+    // as the sentence builds, ARRIVING at exactly 1.0 as the hook lands.
+    //
+    // Arriving at 1.0 rather than passing through it is the whole point. A
+    // camera parked at, say, 1.03 through the read is constant, so it looks
+    // still — but it is resampling every glyph onto non-integer positions
+    // every frame, and the encoder stops emitting identical blocks. That is
+    // the shimmer this Reel has already had twice. At exactly 1.0 the rig
+    // drops its transform entirely and the frame is genuinely static.
+    {start: 0, end: 38, from: 0.94, to: 1, fx: 72, fy: 760},
+    // (f38-46 the camera is IDENTITY: LANGWEILIG. lands and nothing moves.
+    //  The brief asks for velocity to rise as the word appears; it rises
+    //  eight frames later instead, because the same brief asks harder for
+    //  this word not to shimmer, and for the camera to settle where there
+    //  is something to read.)
+    // 01b — acceleration into the red, from rest. The glyphs exceed the
+    // viewport and the viewer passes through them rather than watching
+    // them scale.
+    {start: 46, end: 60, from: 1, to: 1.42, fx: 72, fy: 760},
+    // 01c — back to rest underneath the solid red field, where a 42%
+    // magnification change is invisible because there is nothing to see.
+    // Finished before the wipe begins at f66, so the wipe's revealing edge
+    // travels at exactly the speed it was choreographed to.
+    {start: 60, end: 66, from: 1.42, to: 1, fx: 72, fy: 760},
+    // 04 — the camera reaches 100K+. The number is an object ahead in
+    // space, not a graphic scaling up in place.
+    {start: 408, end: 428, from: 1, to: 1.48, fx: 120, fy: 910},
+    // ...and stops. FALL AUF. is powerful partly because the camera finally
+    // arrives; the reset hides inside its arrival and the blur peak.
+    {start: 426, end: 440, from: 1.48, to: 1, fx: 120, fy: 910},
+  ];
+  const camera = cameraAt(frame, cameraMoves);
+  // Near planes grow faster than far ones as the camera closes in — the
+  // difference between a camera push and a scale animation.
+  const camGain = depthGain(camera.scale);
+  // Item 25: blur tracks camera velocity and is structurally 0 at rest.
+  const camBlur = motionBlur(camera.velocity, 0.055, 9);
+
+  // ---- depth-expressed camera moves (no dolly, so nothing can crop) ----
+  // 02 — the problem world recedes as it is swiped away, so OFFSCRIPT is
+  // revealed as the larger composition rather than simply replacing it.
+  const b2PullZ = interpolate(easeProgress(frame, 124, 152, easeCamera), [0, 1], [0, PLANE.background]);
+  // 03 — the service surface creeps toward the viewer across the whole
+  // beat. 2.7% over three seconds: felt, not seen.
+  const b4DriftZ = interpolate(easeProgress(frame, 212, 302, easeInOutCubic), [0, 1], [0, 28]);
+  // 04a — the process chain builds forward momentum toward GROW.
+  const b5PushZ = interpolate(easeProgress(frame, 316, 392, easeInCubic), [0, 1], [0, 46]);
+
+  // =========================================================================
+  // IMPACTS — and not one of them is
   // meant to be noticed as camera movement.
   //
   // Every amplitude here is inside the brief's ceiling (X 2-6px, Y 2-8px,
@@ -350,7 +423,8 @@ export const OffscriptReel: React.FC = () => {
         </Sequence>
       ))}
 
-      <CameraRig frame={frame} impacts={cameraImpacts}>
+      <CameraRig frame={frame} impacts={cameraImpacts} camera={camera}>
+      <div style={{position: 'absolute', inset: 0, filter: camBlur > 0.05 ? `blur(${camBlur}px)` : undefined}}>
       {/* ================= BEAT 1 — HOOK =================
           The red field sits UNDER the type so LANGWEILIG. stays readable on
           top of it while it floods — that is what makes the transition read
@@ -373,8 +447,8 @@ export const OffscriptReel: React.FC = () => {
       )}
 
       <div style={{opacity: 1 - b1Consumed}}>
-        <HookWord frame={frame} text="DEINE" start={b1DeineStart} dur={15} fromY={280} fromZ={PLANE.secondary} fontSize={HOOK_SIZE} left={CONTENT.left} top={286} />
-        <HookWord frame={frame} text="MARKE" start={b1MarkeStart} dur={16} fromY={90} fromX={150} fromZ={PLANE.background} fontSize={HOOK_SIZE} left={CONTENT.left + 200} top={470} />
+        <HookWord frame={frame} text="DEINE" start={b1DeineStart} dur={15} fromY={280} fromZ={PLANE.secondary} gain={camGain} fontSize={HOOK_SIZE} left={CONTENT.left} top={286} />
+        <HookWord frame={frame} text="MARKE" start={b1MarkeStart} dur={16} fromY={90} fromX={150} fromZ={PLANE.background} gain={camGain} fontSize={HOOK_SIZE} left={CONTENT.left + 200} top={470} />
         {/* Stationary through the impact. A 2-4px secondary reaction would
             have been allowed, but this is the largest type in the frame at
             the exact moment the brief says must be clean — so it holds. */}
@@ -393,7 +467,7 @@ export const OffscriptReel: React.FC = () => {
       </div>
 
       {/* ================= BEAT 2 — THE PROBLEM ================= */}
-      <div style={{position: 'absolute', left: CONTENT.left, top: 618, width: CONTENT_W}}>
+      <div style={{position: 'absolute', left: CONTENT.left, top: 618, width: CONTENT_W, transform: b2PullZ ? depth(b2PullZ) : undefined, transformOrigin: '30% 50%'}}>
         <KineticPhrase
           words={[{text: 'DEIN'}, {text: 'CONTENT'}]}
           frame={frame}
@@ -418,7 +492,7 @@ export const OffscriptReel: React.FC = () => {
         </div>
       </div>
 
-      <div style={{position: 'absolute', inset: 0, transform: `translateX(${anticX}px)`}}>
+      <div style={{position: 'absolute', inset: 0, transform: `translateX(${anticX}px) ${b2PullZ ? depth(b2PullZ) : ''}`, transformOrigin: '30% 45%'}}>
         {/* The tick that physically attaches the metric to the headline. */}
         <GraphicLine
           orientation="v"
@@ -558,6 +632,7 @@ export const OffscriptReel: React.FC = () => {
           fontSize={122}
           markerEnter={b4RailGrow + 8}
           markerExit={302}
+          driftZ={b4DriftZ}
           services={[
             {label: 'CONTENT', kind: 'content'},
             {label: 'STRATEGIE', kind: 'strategy'},
@@ -619,7 +694,7 @@ export const OffscriptReel: React.FC = () => {
       )}
 
       {/* ================= BEAT 5 — THE MACHINE ================= */}
-      <div style={{position: 'absolute', left: CONTENT.left, top: 812}}>
+      <div style={{position: 'absolute', left: CONTENT.left, top: 812, transform: b5PushZ ? depth(b5PushZ) : undefined, transformOrigin: '20% 50%'}}>
         <ProcessChain frame={frame} start={b5ChainStart} fontSize={74} growExitStart={b5LaunchStart} tone={tone} externalLine />
       </div>
       {/* The roller sits in the same band the hero statement resolves into,
@@ -640,6 +715,7 @@ export const OffscriptReel: React.FC = () => {
           launchEnd={b5LaunchEnd}
           emergeStart={b5MetricStart}
           emergeEnd={b5MetricStart + 20}
+          gain={camGain}
         >
           <MetricRoller frame={frame} fps={fps} start={b5MetricStart} duration={b5RollDur} values={['3K', '12K', '47K', '100K+']} fontSize={138} color={tone.ink} />
         </B5MetricLaunch>
@@ -716,6 +792,12 @@ export const OffscriptReel: React.FC = () => {
           Hierarchy is logo, then the website, then the tagline, then the
           CTA. The website is the thing a viewer has to be able to act on,
           so it is set as a design element rather than as a footnote. */}
+      {/* 05 — the pull-out resolves here. The whole card arrives very
+          slightly forward and settles back to the base plane, which reads as
+          the camera coming to rest; `DepthIn` then drops its transform
+          entirely, so the endcard is ordinary static 2D type for the final
+          second. No drift, no float, nothing left moving to read against. */}
+      <DepthIn frame={frame} start={b7LogoStart} dur={26} from={PLANE.active} to={PLANE.base}>
       <div style={{position: 'absolute', left: 0, width: '100%', top: EC_TOP, display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
         <DepthIn frame={frame} start={b7LogoStart} dur={18} from={PLANE.secondary} to={PLANE.base}>
           <LogoReveal frame={frame} fps={fps} start={b7LogoStart} width={EC_LOGO_W} fromRotate={-4} fromScale={0.9} fromBlur={18} fadeIn={5} duration={20} />
@@ -745,6 +827,8 @@ export const OffscriptReel: React.FC = () => {
         <B7FadeUp frame={frame} start={b7CtaStart}>
           <CTAArrow frame={frame} start={b7CtaStart + 6} />
         </B7FadeUp>
+      </div>
+      </DepthIn>
       </div>
       </CameraRig>
 
@@ -778,7 +862,9 @@ const HookWord: React.FC<{
   top: number;
   extraY?: number;
   extraScale?: number;
-}> = ({frame, text, start, dur, fromY = 0, fromX = 0, fromZ = PLANE.secondary, fontSize, left, top, extraY = 0, extraScale = 1}) => {
+  /** Depth exaggeration from the camera. 1 while the camera is at rest. */
+  gain?: number;
+}> = ({frame, text, start, dur, fromY = 0, fromX = 0, fromZ = PLANE.secondary, fontSize, left, top, extraY = 0, extraScale = 1, gain = 1}) => {
   // Not yet started is NOT the same as at rest. An eased progress clamps to
   // 0 before its window opens, and 0 here is a perfectly valid VISIBLE pose
   // — offset and oversized — so the word would sit parked at its entry
@@ -793,7 +879,7 @@ const HookWord: React.FC<{
   const v = Math.abs(y - interpolate(pPrev, [0, 1], [fromY, 0])) + Math.abs(x - interpolate(pPrev, [0, 1], [fromX, 0]));
   const blur = motionBlur(v, fontSize * 0.34, 36);
   const stretch = velocityStretch(v, fontSize * 0.34, 0.1);
-  const z = interpolate(p, [0, 1], [fromZ, PLANE.base]);
+  const z = interpolate(p, [0, 1], [fromZ, PLANE.base]) * gain;
   // Two frames of ramp, spent entirely inside the entry blur, so the word
   // resolves out of its own smear instead of switching on.
   const opacity = easeProgress(frame, start, start + 2, easeOutCubic);
@@ -819,7 +905,7 @@ const HookWord: React.FC<{
         // against text that is not — and these two words sit right beside
         // LANGWEILIG. during exactly the frames that have to be clean.
         transform:
-          p >= 1 && extraY === 0 && extraScale === 1
+          p >= 1 && extraY === 0 && extraScale === 1 && Math.abs(z) < 0.01
             ? undefined
             : `translate(${x}px, ${y + extraY}px) scale(${extraScale}, ${extraScale * stretch}) ${depth(z)}`,
         transformOrigin: '0% 50%',
@@ -1087,10 +1173,11 @@ const B5MetricLaunch: React.FC<{
   launchEnd: number;
   emergeStart: number;
   emergeEnd: number;
+  gain: number;
   children: React.ReactNode;
-}> = ({frame, launchStart, launchEnd, emergeStart, emergeEnd, children}) => {
+}> = ({frame, launchStart, launchEnd, emergeStart, emergeEnd, gain, children}) => {
   const emerge = easeProgress(frame, emergeStart, emergeEnd, easeCamera);
-  const zRest = interpolate(emerge, [0, 1], [PLANE.secondary, PLANE.base]);
+  const zRest = interpolate(emerge, [0, 1], [PLANE.secondary, PLANE.base]) * gain;
 
   const p = easeProgress(frame, launchStart, launchEnd, easeInCubic);
   if (p >= 0.999) return null;
@@ -1130,9 +1217,11 @@ const DepthIn: React.FC<{
 }> = ({frame, start, dur, from, to, origin = '50% 50%', children}) => {
   const p = easeProgress(frame, start, start + dur, easeCamera);
   const z = interpolate(p, [0, 1], [from, to]);
-  return (
-    <div style={{transform: depth(z), transformOrigin: origin}}>{children}</div>
-  );
+  // Settled means NO transform, not a 3D identity — a settled
+  // `perspective(...) translateZ(0)` still puts its subtree on a composited
+  // layer where glyph edges resample against text that is not on one.
+  const settled = p >= 1 && Math.abs(z) < 0.01;
+  return <div style={{transform: settled ? undefined : depth(z), transformOrigin: origin}}>{children}</div>;
 };
 
 /**
