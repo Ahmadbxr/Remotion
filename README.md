@@ -372,6 +372,117 @@ real time and judge perceived energy against the reference the way a human
 can — the rendered file is the deliverable for that judgment call, not this
 checklist.
 
+## `OffscriptReel` — kinetic brand Reel (1080x1920, ~20s)
+
+Built completely from zero: no code, timing, layout, transition, or
+typography logic is shared with `OffscriptFilm` above — only actual brand
+assets (color tokens, the font stack, the logo file) are reused, exactly as
+scoped. Lives entirely under `src/reel/`.
+
+**Creative direction**: kinetic editorial design, not a slow keynote reveal
+— word-by-word typography as the hero element, a continuous chain of
+cause-and-effect transitions (an impact triggers the next scene; a swipe
+gesture clears a "world" of content to reveal the logo underneath; a growth
+counter explodes toward camera and that explosion *becomes* the hero
+statement's entrance), never a fade-to-black between sequences.
+
+**Motion system** (`src/reel/springs.ts`): six named presets grounded in
+the installed motion-design skills' own spring/timing tables —
+`SNAPPY_TEXT` (kinetic type), `IMPACT` (hits, hero words), `SOFT_CARD`
+(the social-content cards), `UI_MICRO` (tiny ticks), `HERO` (large
+transitions), `SETTLE` (the logo, no bounce). Every animation reaches for
+one of these; none are ad-hoc. `progress`/`withOvershoot`/`motionBlur` are
+the same class of utility as the earlier film's (a clamped spring-driven
+0→1 timing driver, a directionally-consistent single-overshoot shaper, and
+velocity→blur mapping) but are a fresh, independent implementation — blur
+in particular is never hand-authored; every blur value in the Reel is a
+measured frame-to-frame velocity run through `motionBlur`, so it is
+structurally exactly 0 the instant something stops moving.
+
+**Structure** — seven sequences, each bleeding into the next rather than
+cutting:
+- **A — Pattern interrupt** (`src/reel/components/KineticType.tsx`):
+  "DEINE MARKE IST NICHT LANGWEILIG." assembles word-by-word; LANGWEILIG.
+  hits hard (scale 0.7→1.1→1, IMPACT spring, turns red) and every other
+  word in the sentence gets a brief physical "kick" displacement the
+  instant it lands — a shared-trigger reaction, not an isolated animation.
+  The impact itself (no pause) starts the exit into Sequence B.
+- **B — The problem**: "DEIN CONTENT VIELLEICHT SCHON." plus five small
+  abstract social-signal cards (`SpringCard`/`SignalChip` —
+  "327 Views", "Skip →", etc., an original visual interpretation, never a
+  literal screenshot) that spring in with their own physical character,
+  then get violently swiped off in one shared gesture (`swipeProgress`)
+  that becomes the transition into Sequence C.
+- **C — OFFSCRIPT reveal**: the real logo asset (unaltered) revealed as
+  the swipe clears, then "WIR MACHEN CONTENT, DEN MAN NICHT WEGSWIPT." —
+  WEGSWIPT. gets a dedicated micro-interaction (`CWiggleWrap`): a brief
+  attempted-swipe pull, then a hard spring back to rest.
+- **D — Service scroller** (`src/reel/components/ServiceScroller.tsx`):
+  CONTENT / STRATEGIE / SOCIAL MEDIA / CREATOR as ONE continuous vertical
+  relay — every item's enter/exit is a pure function of frame (nothing
+  conditionally mounts), so the next service is always already rising
+  while the current one is still leaving. Each icon
+  (`src/reel/components/Icons.tsx`) has genuine internal draw-in animation
+  — a play triangle assembling inside a drawn frame, nodes connecting in
+  sequence, cards stacking dynamically, camera corner-brackets finding
+  focus — never a shape that just fades or scales in as a static whole.
+- **E — The engine** (`src/reel/components/ProcessChain.tsx` +
+  `MetricCounter.tsx`): IDEA → SHOOT → EDIT → POST → GROW as a horizontal
+  chain reaction (one word visible at a time, a red line growing beneath
+  each is what visually "pushes" the next one into frame), which GROW
+  hands off to a rapid-fire counter (3K → 12K → 47K → 100K+) that doesn't
+  fade out — it explodes toward camera (`MetricLaunch`: scale to 3.4x,
+  blur to 34px) and that explosion motion crossfades directly into
+  Sequence F's entrance.
+- **F — Hero statement**: "FALL AUF." (ink) / "NICHT DURCH." (red, full
+  line) at the Reel's largest type size, ~0.5s more breathing room than
+  earlier sequences per the brief, with a barely-perceptible continuous
+  breathing scale so the hold never reads as fully static. Its own
+  collapse toward center (`HeroCollapse`) becomes the closing logo's
+  entrance in Sequence G.
+- **G — CTA**: logo, "CONTENT, DER HÄNGEN BLEIBT.", `offscript.ch`, then
+  "LET'S CREATE →" — the arrow nudges exactly twice
+  (`src/reel/components/CTA.tsx`, deterministic, frame-bound) and stops,
+  never an indefinite loop. ~1.5s of pure readability before the video ends.
+
+**A real bug found and fixed during QA**: `LogoReveal` and the section-D
+"WAS WIR MACHEN" kicker were both built with an entrance but no exit —
+once their spring settled, they stayed at full opacity for the rest of the
+600-frame timeline. Caught by rendering full-resolution stills mid-Sequence-D
+and mid-Sequence-F (not just thumbnails): a small leftover OFFSCRIPT logo
+and kicker text were silently colliding with "STRATEGIE", then with "FALL
+AUF." itself (a garbled double-exposure, the exact defect class the brief's
+own QA checklist calls out). Root cause was structural, not cosmetic — an
+element with only a built-in entrance and no exit is a persistent-forever
+element the instant it's used inside a composition where every sequence's
+`AbsoluteFill` stays mounted for the full timeline (chosen deliberately,
+same as `OffscriptFilm`, so nothing conditionally remounts and creates a
+reset seam). Fixed by giving `LogoReveal` an optional `exitStart` and
+giving the kicker its own exit fade, both timed to complete before the next
+sequence needs that screen space. Reverified via fresh full-resolution
+stills at the exact frames that were broken.
+
+**Sound design** (added last, after motion was verified to work silently):
+sparse rhythm accents, never one sound per movement — the LANGWEILIG
+impact, the swipe, the OFFSCRIPT reveal (the Reel's one loudest moment),
+the WEGSWIPT. wiggle, one soft tick per service arrival, three quiet ticks
+during the counter's rapid-fire climb plus one stronger pulse when 100K+
+lands, a restrained (not maximum-volume) reprise of the same signature cue
+under NICHT DURCH., and one subtle click on the CTA. Reuses the project's
+existing synthesized sound library (`public/sfx/`, `scripts/synth-sfx.py`
+— no sampled or licensed audio) as audio assets, retimed to this Reel's
+own event schedule.
+
+**Known scope limits, documented rather than silently skipped**: a
+literal glyph-shaped typography mask (a word's letterforms becoming the
+next scene's wipe mask) was judged too large an undertaking for this pass
+given the render-correctness risk, in favor of the counter-explosion and
+hero-collapse transitions actually implemented, which achieve the same
+"motion causes the next motion" goal through scale/blur rather than
+literal masking. The four service icons intentionally stay small and
+centered rather than filling 60-90% of frame width (reserved for the
+kinetic typography, the Reel's actual hero element, per the brief).
+
 ## Usage
 
 ```bash
@@ -380,7 +491,7 @@ npm install
 # Live preview / editor
 npm run dev
 
-# Render a composition (id = OffscriptPromo or OffscriptFilm)
+# Render a composition (id = OffscriptPromo, OffscriptFilm, or OffscriptReel)
 npx remotion render src/index.ts OffscriptFilm out/offscript-film.mp4
 
 # Render a single still frame
