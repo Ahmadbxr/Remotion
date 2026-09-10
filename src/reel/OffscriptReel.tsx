@@ -1,11 +1,10 @@
 import React from 'react';
 import {AbsoluteFill, Audio, Sequence, interpolate, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
-import {BRAND} from './theme';
-import {springProgress, withOvershoot, TEXT, SETTLE} from './motion/springs';
-import {easeProgress, easeOutExpo, easeInExpo, easeInOutCubic} from './motion/easings';
-import {motionBlur} from './motion/velocity';
+import {BRAND, FONT} from './theme';
+import {springProgress, withOvershoot, TEXT, IMPACT, SETTLE} from './motion/springs';
+import {easeProgress, easeOutExpo, easeOutCubic, easeInExpo, easeInCubic, easeInOutCubic} from './motion/easings';
+import {motionBlur, velocityStretch} from './motion/velocity';
 import {KineticWord, KineticPhrase} from './components/Kinetic';
-import {MaskReveal} from './components/MaskReveal';
 import {SocialMetric} from './components/SocialMetric';
 import {ServiceMachine} from './components/ServiceMachine';
 import {ProcessChain} from './components/ProcessChain';
@@ -15,141 +14,159 @@ import {CTAArrow} from './components/CTA';
 import {GraphicLine, MetaLabel} from './components/Motifs';
 
 // ---------------------------------------------------------------------------
-// ONE 20-second movement, not seven scenes. Every beat below either grows
-// directly out of the previous beat's own exit motion (a match by
-// direction/velocity) or is revealed BY it (a wipe, a swipe, a clearing) —
-// nothing fades to an empty frame and then fades something else in.
+// ONE 20-second movement. At every boundary the question is "what visual
+// element from the previous beat CREATES the next one?" — and the answer is
+// always a specific object, never "the scene changes":
+//
+//   HOOK -> PROBLEM     LANGWEILIG.'s own red field floods the frame and
+//                       recedes to uncover the next screen.
+//   PROBLEM -> OFFSCRIPT the leftward swipe carries the UI off and the
+//                       sheets under it peel away to expose the logo.
+//   OFFSCRIPT -> SERVICES the logo collapses into a single point and the
+//                       services rail draws itself downward from it.
+//   SERVICES -> PROCESS the surface keeps scrolling past its last row, and
+//                       the chain starts inside that same exit motion.
+//   PROCESS -> HERO     the counter explodes toward camera; the hero
+//                       statement resolves out of that same blur.
+//   HERO -> LOGO        the statement compresses to one point under heavy
+//                       blur and the logo is swapped in inside the blur.
 // ---------------------------------------------------------------------------
 
 const breathe = (frame: number, amp = 0.01, freq = 0.4, phase = 0) =>
   1 + Math.sin((frame / 30) * freq * Math.PI * 2 + phase) * amp;
+
+// LANGWEILIG.'s own box — the red field is seeded from exactly these bounds.
+const LW_L = 40;
+const LW_T = 690;
+const LW_W = 940;
+const LW_H = 130;
 
 export const OffscriptReel: React.FC = () => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
 
   // =========================================================================
-  // BEAT 1 — HOOK (0-75): already in motion at frame 0.
+  // BEAT 1 — HOOK. Oversized type, already mid-flight at frame 0, bleeding
+  // past both viewport edges. Decisive bezier arrivals (camera-like), with
+  // the spring reserved for LANGWEILIG.'s physical impact.
   // =========================================================================
   const b1DeineStart = -4;
-  const b1MarkeStart = 6;
-  const b1IstNichtStart = 22;
-  const b1ImpactStart = 34;
-  const b1ImpactDur = 15;
+  const b1MarkeStart = 2;
+  const b1IstNichtStart = 18;
+  const b1ImpactStart = 32;
+  const b1ImpactDur = 14;
   const b1ImpactHit = b1ImpactStart + b1ImpactDur * 0.62;
-  const b1WipeStart = Math.round(b1ImpactHit) + 6;
-  const b1WipeCoverEnd = b1WipeStart + 11;
-  const b1WipeRecedeStart = b1WipeCoverEnd + 5;
-  const b1WipeRecedeEnd = 75;
 
-  const wipeCoverP = easeProgress(frame, b1WipeStart, b1WipeCoverEnd, easeInExpo);
-  const wipeRecedeP = easeProgress(frame, b1WipeRecedeStart, b1WipeRecedeEnd, easeOutExpo);
-  // The panel is pre-sized to the FULL frame and scales from a near-zero
-  // seed (at LANGWEILIG.'s own position) up to 1 — not a small box scaled
-  // by a few x, which could never cover 1080x1920 from a 60px seed.
-  const wipeScale = interpolate(wipeCoverP, [0, 1], [0.02, 1]);
-  const wipeOpacity = wipeCoverP * (1 - interpolate(wipeRecedeP, [0, 0.7, 1], [0, 0.15, 1]));
-  const wipeY = interpolate(wipeRecedeP, [0, 1], [0, -2300]);
+  const b1BoxIn = easeProgress(frame, 46, 50, easeOutCubic); // the word's own red field lights up
+  const b1BoxSX = interpolate(easeProgress(frame, 47, 56, easeInCubic), [0, 1], [1, 1.5]);
+  const b1BoxSY = interpolate(easeProgress(frame, 50, 62, easeInCubic), [0, 1], [1, 19]);
+  const b1Consumed = easeProgress(frame, 46, 58, easeInOutCubic); // the rest of the type is swallowed by the red
+  const b1LwFade = easeProgress(frame, 58, 66, easeInOutCubic);
+  const b1RecedeP = easeProgress(frame, 66, 80, easeInOutCubic);
+  const b1BoxY = interpolate(b1RecedeP, [0, 1], [0, -2500]);
+  const b1BoxOn = b1BoxIn > 0.002 && b1RecedeP < 0.999;
 
-  // The shared impact "kick" every earlier word gets the instant LANGWEILIG
-  // lands — one shockwave, not independent per-word reactions.
+  // The shockwave every settled word takes when LANGWEILIG. lands.
   const kickT = frame - b1ImpactHit;
-  const kickAmt = kickT >= 0 && kickT <= 10 ? Math.sin((kickT / 10) * Math.PI) * 10 : 0;
-  // A tiny anticipation compress on the settled words right before impact.
+  const kickAmt = kickT >= 0 && kickT <= 10 ? Math.sin((kickT / 10) * Math.PI) * 12 : 0;
   const anticT = b1ImpactHit - 6 - frame;
   const anticAmt = anticT >= 0 && anticT <= 6 ? Math.sin((anticT / 6) * Math.PI) * 0.03 : 0;
 
   // =========================================================================
-  // BEAT 2 — THE PROBLEM (75-150)
+  // BEAT 2 — THE PROBLEM. One headline, one secondary metric attached to it
+  // by a red tick, two tertiary signals that physically interact.
   // =========================================================================
-  const b2TextStart = 60;
-  const b2MetricsStart = 80;
+  const b2TextStart = 68;
+  const b2TickStart = 96;
+  const b2MetricsStart = 86;
   const b2AnticStart = 128;
   const b2SwipeStart = 134;
   const b2SwipeDur = 16;
-  const anticP = easeProgress(frame, b2AnticStart, b2SwipeStart, easeInOutCubic);
-  const anticX = interpolate(anticP, [0, 1], [0, 14]); // opposite the swipe direction (swipe goes left)
+  const anticX = interpolate(easeProgress(frame, b2AnticStart, b2SwipeStart, easeInOutCubic), [0, 1], [0, 16]);
   const swipeProgress = interpolate(frame, [b2SwipeStart, b2SwipeStart + b2SwipeDur], [0, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
-  // SKIP -> physically travels across frame; when its position crosses
-  // "0 SHARES" that chip gets a small reactive nudge — an approximated
-  // collision, not two independently-timed animations.
-  const skipTravelStart = 100;
-  const skipTravelDur = 14;
-  const skipEnterP = easeProgress(frame, b2MetricsStart + 7, b2MetricsStart + 15, easeOutExpo);
+  const skipTravelStart = 104;
+  const skipTravelDur = 16;
+  const skipEnterP = easeProgress(frame, b2MetricsStart + 8, b2MetricsStart + 16, easeOutExpo);
   const skipP = easeProgress(frame, skipTravelStart, skipTravelStart + skipTravelDur, easeInOutCubic);
-  const skipX = interpolate(skipP, [0, 1], [-40, 340]);
-  const collideT = frame - (skipTravelStart + skipTravelDur * 0.55);
-  const collideKick = collideT >= 0 && collideT <= 8 ? Math.sin((collideT / 8) * Math.PI) * 12 : 0;
+  const skipX = interpolate(skipP, [0, 1], [0, 900]);
+  // SKIP physically reaches 0 SHARES at ~60% of its travel and knocks it.
+  const collideT = frame - (skipTravelStart + skipTravelDur * 0.6);
+  const collideKick = collideT >= 0 && collideT <= 9 ? Math.sin((collideT / 9) * Math.PI) : 0;
 
   // =========================================================================
-  // BEAT 3 — OFFSCRIPT REVEAL (150-210)
+  // BEAT 3 — OFFSCRIPT REVEAL + the WEGSWIPT resist.
   // =========================================================================
-  const b3LogoStart = 148;
-  const b3LogoExit = 200;
-  const b3TextStart = 164;
-  const b3TextExit = 204;
-  const b3WiggleStart = 199;
-  // The "stacked sheets" peeling away — two plain panels, no content,
-  // sliding off just ahead of the real content, cheaply suggesting layers.
   const b3SheetsStart = b2SwipeStart + 4;
+  const b3LogoStart = 144;
+  const b3LogoExit = 196;
+  const b3TextStart = 156;
+  const b3TextExit = 200;
+  const b3HitStart = 178; // the invisible swipe force lands here
 
   // =========================================================================
-  // BEAT 4 — SERVICES (210-330)
+  // BEAT 4 — SERVICES, one continuous surface.
   // =========================================================================
+  // The rail draws, and the surface is already rising into frame, WHILE
+  // beat 3's text is still leaving — otherwise there are dead frames at the
+  // boundary where one beat has gone and the next has not arrived.
+  const b4RailGrow = 202;
   const b4AnchorStart = 202;
+  const b4MachineStart = 218;
+  const b4Slot = 25;
   const b4AnchorExit = 316;
-  const b4MachineStart = 212;
 
   // =========================================================================
-  // BEAT 5 — ENGINE (330-420)
+  // BEAT 5 — THE MACHINE.
   // =========================================================================
-  const b5ChainStart = 322;
-  const b5MetricStart = b5ChainStart + 90; // overlaps GROW's own fade-out
-  const b5LaunchStart = b5MetricStart + 22;
-  const b5LaunchEnd = b5LaunchStart + 20;
+  const b5ChainStart = 312;
+  const b5MetricStart = b5ChainStart + 78;
+  const b5RollDur = 20;
+  const b5LaunchStart = b5MetricStart + 30;
+  const b5LaunchEnd = b5LaunchStart + 14;
 
   // =========================================================================
-  // BEAT 6 — HERO (420-510)
+  // BEAT 6 — HERO. Its entrance starts at the launch's PEAK velocity, not
+  // after it — otherwise the counter is still sitting there while the
+  // headline arrives and the two read as separate events instead of one.
   // =========================================================================
-  const b6Line1Start = b5LaunchStart + 6; // rises directly out of the counter's own launch
-  const b6AnticStart = b6Line1Start + 20;
+  const b6Line1Start = b5LaunchStart + 10;
+  const b6AnticStart = b6Line1Start + 22;
   const b6Line2Start = b6AnticStart + 6;
-  const b6ExitStart = 495;
-  const b6ExitEnd = 515;
+  const b6ExitStart = 492;
+  const b6ExitEnd = 506;
 
   // =========================================================================
-  // BEAT 7 — CTA (510-600)
+  // BEAT 7 — CTA.
   // =========================================================================
-  const b7LogoStart = 505;
-  const b7TaglineStart = 524;
-  const b7UrlStart = 542;
-  const b7CtaStart = 554;
+  const b7LogoStart = 502;
+  const b7TaglineStart = 520;
+  const b7UrlStart = 537;
+  const b7CtaStart = 548;
 
   // =========================================================================
-  // SOUND — sparse rhythm accents only, reusing the project's synthesized
-  // library as audio assets, retimed to this rebuild's own event schedule.
+  // SOUND — sparse accents only, on the moments that carry weight.
   // =========================================================================
   type Cue = {frame: number; file: string; volume: number};
   const cues: Cue[] = [
     {frame: Math.round(b1ImpactHit), file: 'icon-lock.wav', volume: 0.7},
-    {frame: b1WipeStart, file: 'morph-tone.wav', volume: 0.4},
+    {frame: 46, file: 'morph-tone.wav', volume: 0.45},
     {frame: b2SwipeStart, file: 'scroll-air.wav', volume: 0.6},
     {frame: b3LogoStart, file: 'offscript-signature.wav', volume: 0.85},
-    {frame: b3WiggleStart, file: 'flip-air.wav', volume: 0.35},
-    {frame: b4MachineStart + 13, file: 'icon-lock.wav', volume: 0.3},
-    {frame: b4MachineStart + 43, file: 'icon-lock.wav', volume: 0.3},
-    {frame: b4MachineStart + 73, file: 'icon-lock.wav', volume: 0.3},
-    {frame: b4MachineStart + 103, file: 'icon-lock.wav', volume: 0.3},
-    {frame: b5ChainStart + 20, file: 'flip-air.wav', volume: 0.3}, // SHOOT delivered
-    {frame: b5ChainStart + 76, file: 'icon-lock.wav', volume: 0.4}, // GROW lands
-    {frame: b5MetricStart + 20, file: 'metric-pulse-3.wav', volume: 0.55},
+    {frame: b3HitStart, file: 'flip-air.wav', volume: 0.45},
+    {frame: b4MachineStart, file: 'icon-lock.wav', volume: 0.3},
+    {frame: b4MachineStart + b4Slot, file: 'icon-lock.wav', volume: 0.3},
+    {frame: b4MachineStart + b4Slot * 2, file: 'icon-lock.wav', volume: 0.3},
+    {frame: b4MachineStart + b4Slot * 3, file: 'icon-lock.wav', volume: 0.3},
+    {frame: b5ChainStart + 22, file: 'flip-air.wav', volume: 0.3},
+    {frame: b5ChainStart + 66, file: 'icon-lock.wav', volume: 0.4},
+    {frame: b5MetricStart + b5RollDur, file: 'metric-pulse-3.wav', volume: 0.55},
     {frame: b6Line1Start, file: 'morph-tone.wav', volume: 0.3},
-    {frame: Math.round(b6Line2Start + 15 * 0.62), file: 'offscript-signature.wav', volume: 0.5},
+    {frame: Math.round(b6Line2Start + 18 * 0.62), file: 'offscript-signature.wav', volume: 0.5},
     {frame: b7LogoStart, file: 'soft-settle.wav', volume: 0.45},
-    {frame: b7CtaStart + 4, file: 'icon-lock.wav', volume: 0.18},
+    {frame: b7CtaStart + 6, file: 'icon-lock.wav', volume: 0.18},
   ];
 
   return (
@@ -161,182 +178,300 @@ export const OffscriptReel: React.FC = () => {
       ))}
 
       {/* ================= BEAT 1 — HOOK =================
-          Everything here is hidden behind the red wipe once it fully
-          covers the frame (wipeCoverP -> 1) and STAYS hidden — the wipe
-          only recedes to reveal Beat 2 underneath, never this. Without this
-          wrapper these words would sit at full opacity forever, the exact
-          "forgot the exit" bug class this project has hit before. */}
-      <div style={{opacity: 1 - wipeCoverP}}>
-        <MaskReveal width={936} height={230} style={{position: 'absolute', left: 72, top: 250}}>
-          <B1Line frame={frame} fps={fps} deineStart={b1DeineStart} markeStart={b1MarkeStart} kickAmt={kickAmt} anticAmt={anticAmt} />
-        </MaskReveal>
-        <div style={{position: 'absolute', left: 72, top: 512, transform: `translateY(${kickAmt * 0.5}px)`}}>
-          <KineticWord text="IST NICHT" frame={frame} fps={fps} enterStart={b1IstNichtStart} fontSize={38} fontWeight={700} color={BRAND.muted} fromY={30} transformOrigin="0% 100%" />
+          The red field sits UNDER the type so LANGWEILIG. stays readable on
+          top of it while it floods — that is what makes the transition read
+          as caused by the word instead of as a flash cutting across it. */}
+      {b1BoxOn && (
+        <div
+          style={{
+            position: 'absolute',
+            left: LW_L,
+            top: LW_T,
+            width: LW_W,
+            height: LW_H,
+            background: BRAND.red,
+            opacity: b1BoxIn,
+            transform: `translateY(${b1BoxY}px) scale(${b1BoxSX}, ${b1BoxSY})`,
+            transformOrigin: '50% 50%',
+          }}
+        />
+      )}
+
+      <div style={{opacity: 1 - b1Consumed}}>
+        <HookWord frame={frame} text="DEINE" start={b1DeineStart} dur={13} fromY={280} fromScale={1.18} fontSize={236} left={-46} top={250} extraY={kickAmt} extraScale={1 - anticAmt} />
+        <HookWord frame={frame} text="MARKE" start={b1MarkeStart} dur={14} fromY={90} fromX={230} fromScale={1.14} fontSize={236} left={300} top={440} extraY={kickAmt} extraScale={1 - anticAmt} />
+        <div style={{position: 'absolute', left: 74, top: 640, transform: `translateY(${kickAmt * 0.45}px)`}}>
+          <KineticWord text="IST NICHT" frame={frame} fps={fps} enterStart={b1IstNichtStart} enterDur={11} fontSize={42} fontWeight={700} color={BRAND.muted} fromY={26} transformOrigin="0% 100%" />
         </div>
-        <div style={{position: 'absolute', left: 72, top: 580}}>
+      </div>
+
+      {/* LANGWEILIG. — red on the page, white once its own field is behind
+          it, then faded away while the field holds full-frame. */}
+      <div style={{position: 'absolute', left: 64, top: 700, opacity: 1 - b1LwFade}}>
+        <KineticWord
+          text="LANGWEILIG."
+          frame={frame}
+          fps={fps}
+          enterStart={b1ImpactStart}
+          enterDur={b1ImpactDur}
+          fontSize={122}
+          color={BRAND.red}
+          impact
+          tilt
+          scaleFrom={0.68}
+          transformOrigin="0% 50%"
+          maxBlur={32}
+        />
+        <div style={{position: 'absolute', left: 0, top: 0, opacity: b1BoxIn}}>
           <KineticWord
             text="LANGWEILIG."
             frame={frame}
             fps={fps}
             enterStart={b1ImpactStart}
             enterDur={b1ImpactDur}
-            fontSize={104}
-            color={BRAND.red}
+            fontSize={122}
+            color="#FFFFFF"
             impact
             tilt
-            scaleFrom={0.7}
+            scaleFrom={0.68}
             transformOrigin="0% 50%"
-            maxBlur={30}
+            maxBlur={32}
           />
         </div>
       </div>
-      {wipeOpacity > 0.002 && (
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background: BRAND.red,
-            opacity: wipeOpacity,
-            transform: `translateY(${wipeY}px) scale(${wipeScale})`,
-            transformOrigin: '7% 33%', // LANGWEILIG.'s own position — the word IS the wipe's seed
-          }}
-        />
-      )}
 
       {/* ================= BEAT 2 — THE PROBLEM ================= */}
-      <div style={{position: 'absolute', left: 72, top: 640, width: 940}}>
+      <div style={{position: 'absolute', left: 72, top: 618, width: 960}}>
         <KineticPhrase
           words={[{text: 'DEIN'}, {text: 'CONTENT'}]}
           frame={frame}
           fps={fps}
           enterStart={b2TextStart}
           exitStart={b2SwipeStart}
-          fontSize={72}
+          fontSize={76}
           align="left"
           style={{justifyContent: 'flex-start'}}
         />
-        <div style={{marginTop: 6}}>
+        <div style={{marginTop: 4}}>
           <KineticPhrase
             words={[{text: 'VIELLEICHT'}, {text: 'SCHON.'}]}
             frame={frame}
             fps={fps}
             enterStart={b2TextStart + 5}
             exitStart={b2SwipeStart}
-            fontSize={72}
+            fontSize={76}
             align="left"
             style={{justifyContent: 'flex-start'}}
           />
         </div>
       </div>
+
       <div style={{position: 'absolute', inset: 0, transform: `translateX(${anticX}px)`}}>
-        <SocialMetric frame={frame} fps={fps} enterStart={b2MetricsStart} x={100} y={560} rotate={-4} depth={1} label="327 VIEWS" child="+12/min" swipeProgress={swipeProgress} swipeDelay={0} swipeDirection={-1} />
-        <SocialMetric frame={frame} fps={fps} enterStart={b2MetricsStart + 4} x={720} y={600} rotate={3} depth={0.6} label="0 SHARES" swipeProgress={swipeProgress} swipeDelay={0.05} swipeDirection={-1} />
+        {/* The tick that physically attaches the metric to the headline. */}
+        <GraphicLine
+          orientation="v"
+          length={46}
+          thickness={3}
+          progress={easeProgress(frame, b2TickStart, b2TickStart + 9, easeOutExpo) * (1 - swipeProgress)}
+          origin="start"
+          style={{position: 'absolute', left: 76, top: 792}}
+        />
+        <SocialMetric
+          frame={frame}
+          fps={fps}
+          enterStart={b2MetricsStart}
+          x={76}
+          y={848}
+          rotate={-2}
+          depth={1}
+          size={40}
+          label="327 VIEWS"
+          child="+12/min"
+          swipeProgress={swipeProgress}
+          swipeDelay={0}
+          swipeDirection={-1}
+        />
+        <div style={{transform: `translate(${collideKick * 46}px, ${collideKick * -14}px) rotate(${collideKick * 7}deg)`, transformOrigin: '50% 50%'}}>
+          <SocialMetric
+            frame={frame}
+            fps={fps}
+            enterStart={b2MetricsStart + 6}
+            x={640}
+            y={982}
+            rotate={3}
+            depth={0.72}
+            size={30}
+            label="0 SHARES"
+            swipeProgress={swipeProgress}
+            swipeDelay={0.06}
+            swipeDirection={-1}
+          />
+        </div>
         <div
           style={{
             position: 'absolute',
             left: 60 + skipX,
-            top: 900,
+            top: 986,
             opacity: skipEnterP * (1 - swipeProgress),
-            transform: `rotate(${-skipP * 6}deg)`,
+            transform: `rotate(${-skipP * 5}deg)`,
+            filter: skipP > 0 && skipP < 1 ? `blur(${motionBlur(skipX - interpolate(easeProgress(frame - 1, skipTravelStart, skipTravelStart + skipTravelDur, easeInOutCubic), [0, 1], [0, 900]), 80, 12)}px)` : undefined,
           }}
         >
-          <MetaLabel text="SKIP →" color={BRAND.red} style={{fontSize: 20}} />
+          <MetaLabel text="SKIP →" color={BRAND.red} style={{fontSize: 30}} />
         </div>
-        <div style={{transform: `translateY(${collideKick}px)`}}>
-          <SocialMetric frame={frame} fps={fps} enterStart={b2MetricsStart + 10} x={760} y={860} rotate={-3} depth={0.8} label="2 LIKES" swipeProgress={swipeProgress} swipeDelay={0.08} swipeDirection={-1} />
-        </div>
-        <SocialMetric frame={frame} fps={fps} enterStart={b2MetricsStart + 14} x={120} y={1080} rotate={2} depth={0.5} label="RETENTION" child="12%" swipeProgress={swipeProgress} swipeDelay={0.12} swipeDirection={-1} />
       </div>
 
       {/* ================= BEAT 3 — OFFSCRIPT REVEAL ================= */}
       <B3Sheets frame={frame} start={b3SheetsStart} />
       <AbsoluteFill style={{alignItems: 'center', justifyContent: 'center', paddingTop: 40}}>
         <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 56}}>
-          <LogoReveal frame={frame} fps={fps} start={b3LogoStart} width={380} exitStart={b3LogoExit} />
-          <B3Wiggle frame={frame} wiggleStart={b3WiggleStart}>
-            <KineticPhrase
-              words={[{text: 'WIR'}, {text: 'MACHEN'}, {text: 'CONTENT,'}]}
-              frame={frame}
-              fps={fps}
-              enterStart={b3TextStart}
-              exitStart={b3TextExit}
-              fontSize={50}
-              align="center"
-            />
-            <div style={{marginTop: 6}}>
+          {/* The logo collapses toward the rail's origin — it BECOMES the
+              services rail rather than fading out near it. */}
+          <B3LogoCollapse frame={frame} exitStart={b3LogoExit}>
+            <LogoReveal frame={frame} fps={fps} start={b3LogoStart} width={380} />
+          </B3LogoCollapse>
+
+          <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+            <SwipeReact frame={frame} hitStart={b3HitStart} amount={0.1}>
               <KineticPhrase
-                words={[{text: 'DEN'}, {text: 'MAN'}, {text: 'NICHT'}, {text: 'WEGSWIPT.', impact: true}]}
+                words={[{text: 'WIR'}, {text: 'MACHEN'}, {text: 'CONTENT,'}]}
                 frame={frame}
                 fps={fps}
-                enterStart={b3TextStart + 4}
+                enterStart={b3TextStart}
                 exitStart={b3TextExit}
-                fontSize={50}
+                fontSize={52}
                 align="center"
               />
+            </SwipeReact>
+            <div style={{marginTop: 6, display: 'flex', alignItems: 'baseline', gap: 14}}>
+              <SwipeReact frame={frame} hitStart={b3HitStart} amount={0.14} delay={2}>
+                <KineticPhrase
+                  words={[{text: 'DEN'}, {text: 'MAN'}, {text: 'NICHT'}]}
+                  frame={frame}
+                  fps={fps}
+                  enterStart={b3TextStart + 4}
+                  exitStart={b3TextExit}
+                  fontSize={52}
+                  align="center"
+                />
+              </SwipeReact>
+              {/* The word that resists. */}
+              <SwipeResist frame={frame} fps={fps} hitStart={b3HitStart}>
+                <KineticWord
+                  text="WEGSWIPT."
+                  frame={frame}
+                  fps={fps}
+                  enterStart={b3TextStart + 10}
+                  exitStart={b3TextExit}
+                  fontSize={52}
+                  color={BRAND.red}
+                  impact
+                  transformOrigin="50% 100%"
+                />
+              </SwipeResist>
             </div>
-          </B3Wiggle>
+          </div>
         </div>
       </AbsoluteFill>
+      <SwipeStreak frame={frame} hitStart={b3HitStart} />
 
       {/* ================= BEAT 4 — SERVICES ================= */}
-      <div style={{position: 'absolute', left: 72, top: 640}}>
+      <div style={{position: 'absolute', left: 72, top: 556}}>
         <B4Anchor frame={frame} start={b4AnchorStart} exitStart={b4AnchorExit} />
-        <div style={{marginTop: 30}}>
-          <ServiceMachine
-            frame={frame}
-            start={b4MachineStart}
-            maskWidth={860}
-            fontSize={128}
-            services={[
-              {label: 'CONTENT', kind: 'content'},
-              {label: 'STRATEGIE', kind: 'strategy'},
-              {label: 'SOCIAL', kind: 'social'},
-              {label: 'CREATOR', kind: 'creator'},
-            ]}
-          />
-        </div>
+      </div>
+      <div style={{position: 'absolute', left: 72, top: 620}}>
+        <ServiceMachine
+          frame={frame}
+          start={b4MachineStart}
+          slot={b4Slot}
+          hold={14}
+          moveDur={11}
+          rowHeight={250}
+          width={940}
+          fontSize={132}
+          railGrowStart={b4RailGrow}
+          services={[
+            {label: 'CONTENT', kind: 'content'},
+            {label: 'STRATEGIE', kind: 'strategy'},
+            {label: 'SOCIAL', kind: 'social'},
+            {label: 'CREATOR', kind: 'creator'},
+          ]}
+        />
       </div>
 
-      {/* ================= BEAT 5 — ENGINE =================
-          Positioned clear of Beat 4's tail end (which spans roughly
-          y=600-940) — a brief temporal overlap between the two beats is
-          intentional (overlapping action), but they must never occupy the
-          same screen region while both are partially visible. */}
-      <div style={{position: 'absolute', left: 72, top: 1040}}>
-        <ProcessChain frame={frame} start={b5ChainStart} fontSize={80} />
+      {/* ================= BEAT 5 — THE MACHINE ================= */}
+      <div style={{position: 'absolute', left: 72, top: 812}}>
+        <ProcessChain frame={frame} start={b5ChainStart} fontSize={80} growExitStart={b5LaunchStart} />
       </div>
+      {/* The roller sits in the same band the hero statement resolves into,
+          so the explosion and the headline are one continuous mass rather
+          than two things in two places. */}
       <B5MetricLaunch frame={frame} launchStart={b5LaunchStart} launchEnd={b5LaunchEnd}>
-        <div style={{position: 'absolute', left: 90, top: 1010}}>
-          <MetricRoller frame={frame} start={b5MetricStart} values={['3K', '12K', '47K', '100K+']} fontSize={140} />
+        <div style={{position: 'absolute', left: 72, top: 884}}>
+          <MetricRoller frame={frame} fps={fps} start={b5MetricStart} duration={b5RollDur} values={['3K', '12K', '47K', '100K+']} fontSize={148} />
         </div>
       </B5MetricLaunch>
 
       {/* ================= BEAT 6 — HERO ================= */}
       <B6Collapse frame={frame} exitStart={b6ExitStart} exitEnd={b6ExitEnd}>
-        <div style={{position: 'absolute', left: 72, top: 780, transform: `scale(${breathe(frame)})`}}>
+        <div style={{position: 'absolute', left: 72, top: 840, transform: `scale(${breathe(frame)})`}}>
           <B6Antic frame={frame} anticStart={b6AnticStart} pushStart={b6Line2Start}>
-            <KineticWord text="FALL AUF." frame={frame} fps={fps} enterStart={b6Line1Start} enterDur={18} fontSize={118} color={BRAND.ink} transformOrigin="0% 100%" maxBlur={32} fromY={70} />
+            {/* Resolves straight out of the counter's blur — a match, not an
+                entrance of its own. */}
+            <MatchIn frame={frame} start={b6Line1Start} dur={16}>
+              <div style={{fontFamily: FONT, fontWeight: 800, fontSize: 124, letterSpacing: -3, color: BRAND.ink, whiteSpace: 'nowrap'}}>
+                FALL AUF.
+              </div>
+            </MatchIn>
           </B6Antic>
-          <div style={{marginTop: 6}}>
-            <KineticWord text="NICHT DURCH." frame={frame} fps={fps} enterStart={b6Line2Start} enterDur={18} fontSize={118} color={BRAND.red} impact tilt transformOrigin="0% 0%" maxBlur={32} />
+          <div style={{marginTop: 4}}>
+            <KineticWord
+              text="NICHT DURCH."
+              frame={frame}
+              fps={fps}
+              enterStart={b6Line2Start}
+              enterDur={18}
+              fontSize={124}
+              color={BRAND.red}
+              impact
+              tilt
+              fromY={80}
+              transformOrigin="0% 0%"
+              maxBlur={34}
+            />
           </div>
         </div>
       </B6Collapse>
 
       {/* ================= BEAT 7 — CTA ================= */}
       <AbsoluteFill style={{alignItems: 'center', justifyContent: 'center'}}>
-        <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18}}>
-          <LogoReveal frame={frame} fps={fps} start={b7LogoStart} width={460} fromRotate={-7} />
-          <GraphicLine orientation="h" length={46} progress={springProgress(frame, b7LogoStart + 14, b7LogoStart + 22, fps, SETTLE)} origin="center" style={{marginTop: 2}} />
-          <div style={{marginTop: 8}}>
-            <KineticPhrase words={[{text: 'CONTENT,'}, {text: 'DER'}, {text: 'HÄNGEN'}, {text: 'BLEIBT.'}]} frame={frame} fps={fps} enterStart={b7TaglineStart} fontSize={34} align="center" />
+        <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+          <LogoReveal frame={frame} fps={fps} start={b7LogoStart} width={560} fromRotate={-6} fromScale={0.42} fromBlur={26} fadeIn={4} duration={18} />
+          <GraphicLine
+            orientation="h"
+            length={54}
+            progress={springProgress(frame, b7LogoStart + 14, b7LogoStart + 22, fps, SETTLE)}
+            origin="center"
+            style={{marginTop: 34}}
+          />
+          <div style={{marginTop: 30}}>
+            <KineticPhrase
+              words={[{text: 'CONTENT,'}, {text: 'DER'}, {text: 'HÄNGEN'}, {text: 'BLEIBT.'}]}
+              frame={frame}
+              fps={fps}
+              enterStart={b7TaglineStart}
+              fontSize={38}
+              align="center"
+            />
           </div>
-          <B7FadeUp frame={frame} start={b7UrlStart}>
-            <MetaLabel text="offscript.ch" color={BRAND.muted} style={{fontSize: 21}} />
-          </B7FadeUp>
-          <div style={{marginTop: 14}}>
+          <div style={{marginTop: 26}}>
+            <B7FadeUp frame={frame} start={b7UrlStart}>
+              <MetaLabel text="offscript.ch" color={BRAND.muted} style={{fontSize: 22}} />
+            </B7FadeUp>
+          </div>
+          <div style={{marginTop: 44}}>
             <B7FadeUp frame={frame} start={b7CtaStart}>
-              <CTAArrow frame={frame} start={b7CtaStart + 8} />
+              <CTAArrow frame={frame} start={b7CtaStart + 6} />
             </B7FadeUp>
           </div>
         </div>
@@ -346,28 +481,60 @@ export const OffscriptReel: React.FC = () => {
 };
 
 // ---------------------------------------------------------------------------
-// Small per-beat helpers — each a pure function of frame.
+// Per-beat helpers — each a pure function of frame.
 // ---------------------------------------------------------------------------
 
-/** DEINE MARKE, sharing one row inside the mask window — MARKE catches up
- *  from below a few frames after DEINE (overlapping action), both riding
- *  the shared impact kick. */
-const B1Line: React.FC<{frame: number; fps: number; deineStart: number; markeStart: number; kickAmt: number; anticAmt: number}> = ({
-  frame,
-  fps,
-  deineStart,
-  markeStart,
-  kickAmt,
-  anticAmt,
-}) => (
-  <div style={{position: 'absolute', top: 40, left: 0, display: 'flex', alignItems: 'baseline', gap: 20, transform: `translateY(${kickAmt}px) scale(${1 - anticAmt})`}}>
-    <KineticWord text="DEINE" frame={frame} fps={fps} enterStart={deineStart} enterDur={17} fontSize={128} transformOrigin="0% 100%" fromY={170} maxBlur={26} />
-    <KineticWord text="MARKE" frame={frame} fps={fps} enterStart={markeStart} enterDur={16} fontSize={128} transformOrigin="0% 100%" fromY={130} maxBlur={26} />
-  </div>
-);
+/** An oversized hook word: decisive bezier arrival (camera-like, no spring
+ *  bounce), scaling down from "close to camera", with blur measured off its
+ *  own travel so it is genuinely smeared while it is genuinely fast. */
+const HookWord: React.FC<{
+  frame: number;
+  text: string;
+  start: number;
+  dur: number;
+  fromY?: number;
+  fromX?: number;
+  fromScale?: number;
+  fontSize: number;
+  left: number;
+  top: number;
+  extraY?: number;
+  extraScale?: number;
+}> = ({frame, text, start, dur, fromY = 0, fromX = 0, fromScale = 1, fontSize, left, top, extraY = 0, extraScale = 1}) => {
+  const at = (f: number) => easeProgress(f, start, start + dur, easeOutCubic);
+  const p = at(frame);
+  const pPrev = at(frame - 1);
+  const y = interpolate(p, [0, 1], [fromY, 0]);
+  const x = interpolate(p, [0, 1], [fromX, 0]);
+  const v = Math.abs(y - interpolate(pPrev, [0, 1], [fromY, 0])) + Math.abs(x - interpolate(pPrev, [0, 1], [fromX, 0]));
+  const blur = motionBlur(v, fontSize * 0.34, 36);
+  const stretch = velocityStretch(v, fontSize * 0.34, 0.1);
+  const scale = interpolate(p, [0, 1], [fromScale, 1]) * extraScale;
 
-/** Two plain, contentless panels sliding off just ahead of the real UI —
- *  a cheap, robust approximation of "stacked sheets peeling away." */
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left,
+        top,
+        fontFamily: FONT,
+        fontWeight: 800,
+        fontSize,
+        letterSpacing: -6,
+        lineHeight: 1,
+        color: BRAND.ink,
+        whiteSpace: 'nowrap',
+        filter: blur ? `blur(${blur}px)` : undefined,
+        transform: `translate(${x}px, ${y + extraY}px) scale(${scale}, ${scale * stretch})`,
+        transformOrigin: '0% 50%',
+      }}
+    >
+      {text}
+    </div>
+  );
+};
+
+/** Two contentless panels peeling away ahead of the real content. */
 const B3Sheets: React.FC<{frame: number; start: number}> = ({frame, start}) => {
   const sheets = [
     {delay: 0, color: BRAND.surface, offset: 18},
@@ -376,9 +543,6 @@ const B3Sheets: React.FC<{frame: number; start: number}> = ({frame, start}) => {
   return (
     <>
       {sheets.map((s, i) => {
-        // Never rendered before its own window — an easeProgress at p=0
-        // still resolves to a valid (visible) rest pose, so an explicit
-        // frame check is required, not just "p >= 0.999" at the far end.
         if (frame < start + s.delay - 2) return null;
         const p = easeProgress(frame, start + s.delay, start + s.delay + 16, easeInExpo);
         if (p >= 0.999) return null;
@@ -408,13 +572,93 @@ const B3Sheets: React.FC<{frame: number; start: number}> = ({frame, start}) => {
   );
 };
 
-const B3Wiggle: React.FC<{frame: number; wiggleStart: number; children: React.ReactNode}> = ({frame, wiggleStart, children}) => {
-  const local = frame - wiggleStart;
-  const pullLen = 6;
-  const pull = local >= 0 && local <= pullLen ? interpolate(local, [0, pullLen], [0, -70]) : local > pullLen ? -70 : 0;
-  const back = local > pullLen ? withOvershoot(Math.min((local - pullLen) / 14, 1), -70, 0, 0.2) : 0;
-  const x = local > pullLen ? back : pull;
+/** The logo collapses to a point at the services rail's origin — the rail
+ *  then draws downward out of that same point. */
+const B3LogoCollapse: React.FC<{frame: number; exitStart: number; children: React.ReactNode}> = ({frame, exitStart, children}) => {
+  const p = easeProgress(frame, exitStart, exitStart + 12, easeInExpo);
+  if (p >= 0.999) return null;
+  // Screen-space delta from the logo's centred position to the rail origin.
+  const x = interpolate(p, [0, 1], [0, -394]);
+  const y = interpolate(p, [0, 1], [0, -168]);
+  const scale = interpolate(p, [0, 1], [1, 0.06]);
+  const blur = interpolate(p, [0, 0.6, 1], [0, 6, 16]);
+  const opacity = interpolate(p, [0, 0.8, 1], [1, 0.7, 0]);
+  return (
+    <div style={{transform: `translate(${x}px, ${y}px) scale(${scale})`, filter: blur ? `blur(${blur}px)` : undefined, opacity}}>
+      {children}
+    </div>
+  );
+};
+
+/** The swipe force hitting WEGSWIPT.: it is thrown sideways fast (bezier —
+ *  an external force, not a spring), then the CONTENT resists and springs
+ *  back with one overshoot. Blur and a matching horizontal stretch are
+ *  measured from its own travel, so the smear is genuinely directional. */
+const swipeResistX = (local: number) => {
+  // Thrown to the RIGHT, into open space — WEGSWIPT. is the last word on
+  // its line, so a leftward throw would drag it across "DEN MAN NICHT" and
+  // read as a collision rather than as the word resisting a swipe.
+  const THROW = 112;
+  if (local < 0) return 0;
+  if (local <= 5) return interpolate(easeProgress(local, 0, 5, easeInCubic), [0, 1], [0, THROW]);
+  return withOvershoot(Math.min((local - 5) / 16, 1), THROW, 0, 0.22);
+};
+
+const SwipeResist: React.FC<{frame: number; fps: number; hitStart: number; children: React.ReactNode}> = ({frame, hitStart, children}) => {
+  const x = swipeResistX(frame - hitStart);
+  const v = x - swipeResistX(frame - hitStart - 1);
+  const blur = motionBlur(v, 26, 22);
+  const stretch = velocityStretch(v, 26, 0.16);
+  return (
+    <div
+      style={{
+        display: 'inline-block',
+        transform: `translateX(${x}px) scale(${stretch}, 1)`,
+        filter: blur ? `blur(${blur}px)` : undefined,
+        transformOrigin: '50% 50%',
+      }}
+    >
+      {children}
+    </div>
+  );
+};
+
+/** Neighbouring words take a fraction of the same hit, slightly delayed —
+ *  the force travels through the sentence instead of affecting one word in
+ *  isolation. */
+const SwipeReact: React.FC<{frame: number; hitStart: number; amount: number; delay?: number; children: React.ReactNode}> = ({
+  frame,
+  hitStart,
+  amount,
+  delay = 0,
+  children,
+}) => {
+  const x = swipeResistX(frame - hitStart - delay) * amount;
   return <div style={{transform: `translateX(${x}px)`}}>{children}</div>;
+};
+
+/** A single fast red streak — the otherwise invisible swipe force, made
+ *  visible for three frames only. */
+const SwipeStreak: React.FC<{frame: number; hitStart: number}> = ({frame, hitStart}) => {
+  const local = frame - hitStart;
+  if (local < -2 || local > 6) return null;
+  const p = easeProgress(frame, hitStart - 2, hitStart + 6, easeInOutCubic);
+  const x = interpolate(p, [0, 1], [-420, 1100]); // travels WITH the throw
+  const opacity = interpolate(p, [0, 0.35, 1], [0, 0.5, 0]);
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: x,
+        top: 1118, // on WEGSWIPT.'s own baseline, not floating above it
+        width: 340,
+        height: 3,
+        background: BRAND.red,
+        opacity,
+        filter: 'blur(2px)',
+      }}
+    />
+  );
 };
 
 const B4Anchor: React.FC<{frame: number; start: number; exitStart: number}> = ({frame, start, exitStart}) => {
@@ -424,28 +668,41 @@ const B4Anchor: React.FC<{frame: number; start: number; exitStart: number}> = ({
   const y = interpolate(enterP, [0, 1], [16, 0]) - interpolate(exitP, [0, 1], [0, 14]);
   return (
     <div style={{opacity, transform: `translateY(${y}px)`}}>
-      <MetaLabel text="OFFSCRIPT SERVICES — 01–04" color={BRAND.red} />
+      <MetaLabel text="OFFSCRIPT SERVICES" color={BRAND.red} />
     </div>
   );
 };
 
-/** The counter explodes toward camera instead of fading — that explosion
- *  IS the transition into the hero statement. */
+/** The counter explodes toward camera — that explosion IS the transition. */
 const B5MetricLaunch: React.FC<{frame: number; launchStart: number; launchEnd: number; children: React.ReactNode}> = ({
   frame,
   launchStart,
   launchEnd,
   children,
 }) => {
-  const p = interpolate(frame, [launchStart, launchEnd], [0, 1], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
-  const scale = interpolate(p, [0, 1], [1, 3.6]);
-  const blur = interpolate(p, [0, 1], [0, 36]);
-  const opacity = interpolate(p, [0, 1], [1, 0]);
-  return <div style={{transform: `scale(${scale})`, filter: blur ? `blur(${blur}px)` : undefined, opacity}}>{children}</div>;
+  const p = easeProgress(frame, launchStart, launchEnd, easeInCubic);
+  if (p >= 0.999) return null;
+  const scale = interpolate(p, [0, 1], [1, 3.8]);
+  const blur = interpolate(p, [0, 1], [0, 38]);
+  const opacity = interpolate(p, [0, 0.75, 1], [1, 0.35, 0]);
+  return <div style={{transform: `scale(${scale})`, transformOrigin: '10% 50%', filter: blur ? `blur(${blur}px)` : undefined, opacity}}>{children}</div>;
 };
 
-/** FALL AUF. shifts up slightly in anticipation, then gets pushed a touch
- *  further by NICHT DURCH. landing — the two lines react to each other. */
+/** Resolves out of an oversized blur — the receiving half of a match cut. */
+const MatchIn: React.FC<{frame: number; start: number; dur: number; children: React.ReactNode}> = ({frame, start, dur, children}) => {
+  const p = easeProgress(frame, start, start + dur, easeOutExpo);
+  const scale = interpolate(p, [0, 1], [2.4, 1]);
+  const blur = interpolate(p, [0, 0.55, 1], [30, 6, 0]);
+  const opacity = interpolate(p, [0, 0.25], [0, 1], {extrapolateRight: 'clamp'});
+  return (
+    <div style={{transform: `scale(${scale})`, transformOrigin: '0% 50%', filter: blur ? `blur(${blur}px)` : undefined, opacity}}>
+      {children}
+    </div>
+  );
+};
+
+/** FALL AUF. lifts in anticipation, then is pushed further by NICHT DURCH.
+ *  landing underneath it. */
 const B6Antic: React.FC<{frame: number; anticStart: number; pushStart: number; children: React.ReactNode}> = ({
   frame,
   anticStart,
@@ -454,26 +711,39 @@ const B6Antic: React.FC<{frame: number; anticStart: number; pushStart: number; c
 }) => {
   const anticP = easeProgress(frame, anticStart, anticStart + 6, easeInOutCubic);
   const pushT = frame - (pushStart + 18 * 0.62);
-  const pushKick = pushT >= 0 && pushT <= 8 ? Math.sin((pushT / 8) * Math.PI) * 10 : 0;
-  const y = interpolate(anticP, [0, 1], [0, -8]) - pushKick;
+  const pushKick = pushT >= 0 && pushT <= 8 ? Math.sin((pushT / 8) * Math.PI) * 12 : 0;
+  const y = interpolate(anticP, [0, 1], [0, -9]) - pushKick;
   return <div style={{transform: `translateY(${y}px)`}}>{children}</div>;
 };
 
-/** The hero statement scales down and rotates slightly — resolving, at the
- *  same anchor point, into the closing logo's own inverse rotation settle. */
+/** The hero statement compresses to a single point under rising blur, and
+ *  is fully gone before the logo is legible — the swap happens inside the
+ *  blur, with zero frames of readable text behind the logo. */
 const B6Collapse: React.FC<{frame: number; exitStart: number; exitEnd: number; children: React.ReactNode}> = ({
   frame,
   exitStart,
   exitEnd,
   children,
 }) => {
-  const p = easeProgress(frame, exitStart, exitEnd, easeInExpo);
-  const scale = interpolate(p, [0, 1], [1, 0.16]);
-  const rotate = interpolate(p, [0, 1], [0, -7]);
-  const blur = interpolate(p, [0, 0.7, 1], [0, 10, 24]);
-  const opacity = interpolate(p, [0, 0.85, 1], [1, 1, 0]);
+  const p = easeProgress(frame, exitStart, exitEnd, easeInCubic);
+  if (p >= 0.999) return null;
+  const scale = interpolate(p, [0, 1], [1, 0.1]);
+  const rotate = interpolate(p, [0, 1], [0, -6]);
+  // Converge on the LOGO's centre, not the statement's own — the two lines
+  // compress to exactly the point the logo resolves at, which is what makes
+  // it read as a transformation instead of a swap.
+  const y = interpolate(p, [0, 1], [0, -132]);
+  const blur = interpolate(p, [0, 0.4, 0.66], [0, 14, 32], {extrapolateRight: 'clamp'});
+  const opacity = interpolate(p, [0, 0.45, 0.66], [1, 0.8, 0], {extrapolateRight: 'clamp'});
   return (
-    <div style={{transform: `rotate(${rotate}deg) scale(${scale})`, filter: blur ? `blur(${blur}px)` : undefined, opacity}}>
+    <div
+      style={{
+        transform: `translateY(${y}px) rotate(${rotate}deg) scale(${scale})`,
+        transformOrigin: '50% 50%',
+        filter: blur ? `blur(${blur}px)` : undefined,
+        opacity,
+      }}
+    >
       {children}
     </div>
   );

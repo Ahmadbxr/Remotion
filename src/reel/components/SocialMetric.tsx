@@ -15,6 +15,8 @@ type Props = {
   depth?: number;
   accent?: boolean;
   label: string;
+  /** Type size — these are few and strong now, not many and tiny. */
+  size?: number;
   /** A child value that drops in slightly AFTER the parent — the
    *  parent/child follow-through hierarchy the brief asks for, not every
    *  child animating independently on its own clock. */
@@ -38,6 +40,7 @@ export const SocialMetric: React.FC<Props> = ({
   depth = 1,
   accent = false,
   label,
+  size = 19,
   child,
   swipeProgress = 0,
   swipeDelay = 0,
@@ -79,7 +82,7 @@ export const SocialMetric: React.FC<Props> = ({
       <div
         style={{
           fontFamily: MONO,
-          fontSize: 19,
+          fontSize: size,
           fontWeight: 600,
           letterSpacing: 0.5,
           color: accent ? BRAND.red : BRAND.ink,
@@ -92,7 +95,7 @@ export const SocialMetric: React.FC<Props> = ({
         <div
           style={{
             fontFamily: MONO,
-            fontSize: 15,
+            fontSize: Math.round(size * 0.62),
             color: BRAND.muted,
             opacity: childP,
             transform: `translateY(${interpolate(childP, [0, 1], [-6, 0])}px)`,

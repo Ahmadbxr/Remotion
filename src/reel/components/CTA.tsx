@@ -13,15 +13,18 @@ type Props = {
  *  12px right, settle to a small forward rest offset. Never repeats. */
 export const CTAArrow: React.FC<Props> = ({frame, start, style}) => {
   const local = frame - start;
+  // Exactly one cycle, three explicit segments: anticipate back 4px,
+  // accelerate 12px right, settle to a small forward rest. Never loops.
   const retract = easeProgress(local, 0, 4, easeInOutCubic);
-  const launch = easeProgress(local, 4, 13, easeOutExpo);
-  const settle = easeProgress(local, 13, 20, easeInOutCubic);
+  const launch = easeProgress(local, 4, 12, easeOutExpo);
+  const settle = easeProgress(local, 12, 20, easeInOutCubic);
 
-  const retractX = interpolate(retract, [0, 1], [0, -4]);
-  const launchX = interpolate(launch, [0, 1], [0, 16]);
-  const settleX = interpolate(settle, [0, 1], [0, -13]); // 16 -> 3 rest
-
-  const x = local < 4 ? retractX : retractX + launchX + settleX;
+  const x =
+    local < 4
+      ? interpolate(retract, [0, 1], [0, -4])
+      : local < 12
+        ? interpolate(launch, [0, 1], [-4, 12])
+        : interpolate(settle, [0, 1], [12, 2]);
 
   return (
     <span style={{display: 'inline-flex', alignItems: 'center', gap: 10, ...style}}>

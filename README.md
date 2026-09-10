@@ -544,6 +544,77 @@ over their internal build animation from the prior pass as a visual
 asset (the brief's complaint was about scene choreography, not icon
 geometry) rather than being redrawn from zero.
 
+### Motion-direction refinement pass
+
+A follow-up pass on the same composition — no rebranding, no story change —
+targeting the beats that still read as separate animated titles:
+
+- **Opening**: `DEINE`/`MARKE` are now oversized (236px), bleed past
+  opposite viewport edges, and are already mid-flight and motion-blurred at
+  frame 0 — the impact lands by frame ~6 instead of the headline slowly
+  assembling. Both arrive on decisive bezier curves (`easeOutCubic`, scaling
+  down from "close to camera"), with the spring reserved for LANGWEILIG.'s
+  physical hit.
+- **The red transition is now visibly CAUSED by the typography**: a red
+  field seeded from LANGWEILIG.'s exact text bounds lights up behind the
+  word (which crossfades to white and stays readable on it), expands
+  horizontally past the viewport, floods vertically, then recedes to
+  uncover the next screen. The rest of the type is "consumed" by the flood
+  rather than cut away by it.
+- **The problem UI dropped from five scattered micro-labels to three
+  stronger, connected signals**: `327 VIEWS` (40px) attached to the
+  headline by a red tick that draws down from it, plus `0 SHARES` and
+  `SKIP →`, which physically collides with and knocks `0 SHARES` aside as
+  it travels.
+- **WEGSWIPT. is now genuinely physical**: an external force throws the
+  word ~112px sideways on an accelerating bezier with directional blur and
+  a matching horizontal stretch, then the content resists and springs back
+  with one overshoot; the neighbouring words take 10-14% of the same hit,
+  two frames later, so the force travels through the sentence. Thrown to
+  the RIGHT into open space — an earlier leftward throw dragged it across
+  "DEN MAN NICHT" and read as a collision instead of resistance.
+- **The services are ONE surface** (`ServiceMachine` rewritten): a single
+  scroll position in row units, never reset, that rises in from below,
+  advances one row per slot with real momentum (accelerate out of the hold,
+  decelerate into the next), and finally carries straight on past the last
+  row — which is what hands off to the next beat. The outgoing row is still
+  travelling while the incoming one is already rising; index numbers and
+  icons live inside the rows so they travel with them; the only fixed
+  elements are the rail and its marker.
+- **The process chain is one machine** (`ProcessChain` rewritten): IDEA
+  stays visible (dimmed back) while its red line travels and *delivers*
+  SHOOT; a rect closes around SHOOT and that closure is the cut to EDIT —
+  the same rect persists, only the label inside changes; a playhead sweeps
+  it; the rect collapses and ejects POST upward; GROW continues POST's
+  exact travel. There is never a frame holding one unrelated word.
+- **The metric roller** is a true slot machine: one continuous surface of
+  stacked values, incoming rising from below while outgoing keep going up
+  and out, vertical directional blur (blur + matching scaleY stretch) that
+  resolves to zero as it decelerates, and a final 0.9 → 1.07 → 1.0 spring
+  overshoot on the landing value.
+- **Two transitions that were still collisions are now match cuts**: the
+  counter explodes toward camera and `FALL AUF.` resolves out of that same
+  blur, in the same screen band (previously the counter sat nearly static
+  while the headline appeared above it — two events, not one); and the hero
+  statement compresses toward the logo's own centre point under rising
+  blur, fully gone before the logo is legible, so the swap happens inside
+  the blur with zero frames of readable text behind the logo.
+- **Final card** strengthened: logo 460 → 560px, wider spacing hierarchy,
+  and the CTA arrow runs exactly one cycle (retract 4px, accelerate 12px,
+  settle to +2px).
+- **Springs vs. bezier** separated by role throughout, per the brief:
+  springs only for physical reaction, resistance, overshoot and settling;
+  decisive bezier curves for scrolls, swipes, wipes, match cuts and
+  camera-like motion.
+
+Bugs caught in this pass's frame-by-frame QC and fixed: the services
+surface parked at a *visible* resting pose, so "CONTENT" and its index were
+on screen from frame 0 (the park value now sits fully outside the
+viewport); `EDIT` and `POST` were both legible in the same rect for a few
+frames; and there were dead frames at the OFFSCRIPT → SERVICES boundary
+where one beat had left and the next had not yet arrived (the rail now
+draws and the surface rises while the previous text is still leaving).
+
 ## Usage
 
 ```bash
