@@ -17,6 +17,9 @@ import {smoothKeys} from './motion/curves';
 import {Impact, impactOffset, impactTransform, transformOf} from './motion/physics';
 import {motionBlur, velocityStretch} from './motion/velocity';
 import {CameraRig} from './components/CameraRig';
+import {MorphRule} from './components/MorphRule';
+import {PLANE, depth, depthScale} from './motion/depth';
+import {SURFACE, TONE, blendTone} from './motion/palette';
 import {CONTENT, CONTENT_W, SafeZoneGuides, widthAt} from './layout';
 import {KineticWord, KineticPhrase} from './components/Kinetic';
 import {SocialMetric} from './components/SocialMetric';
@@ -51,11 +54,14 @@ import {GraphicLine, MetaLabel} from './components/Motifs';
 // letter, which is a legibility cost the "oversized" gesture does not
 // justify. The editorial scale survives the trim — 208px is still nearly a
 // fifth of the frame width per character.
-const HOOK_SIZE = 208;
+const HOOK_SIZE = 192;
 
 // "NICHT DURCH." at 124px overran the content-safe right edge; 116 sets the
 // full line inside it without touching the story or the composition.
-const HERO_SIZE = 116;
+const HERO_SIZE = 108;
+
+// LANGWEILIG. — the word the whole hook lands on.
+const LW_SIZE = 114;
 
 // LANGWEILIG.'s own box — the red field is seeded from exactly these bounds.
 const LW_L = 40;
@@ -124,7 +130,17 @@ export const OffscriptReel: React.FC = () => {
   // the type around it takes a fraction, and later, by distance from the
   // hit; the camera (below) takes least of all. Mass matters too — the
   // 208px display words barely move, the 42px kicker moves most.
-  const lwRecoil = impactOffset(frame, b1ImpactHit, 11, -13, 3); // PRIMARY
+  const lwRecoil = impactOffset(frame, b1ImpactHit, 11, -8, 3); // PRIMARY (Y support)
+  // The primary impact now lives on Z: a short anticipation BACKWARD, a
+  // fast push toward the viewer, one small counter, then a settle onto
+  // ACTIVE. Depth is what makes the hit land, so the frame barely has to
+  // move at all — which is the whole reason the camera amplitudes below
+  // could come down.
+  const lwZ = smoothKeys(
+    easeProgress(frame, b1ImpactStart, b1ImpactStart + b1ImpactDur + 8, easeCamera),
+    [0, 0.16, 0.6, 0.82, 1],
+    [-90, -145, 205, 132, PLANE.active],
+  );
   const istNichtRecoil = impactOffset(frame, b1ImpactHit + 1, 9, -7); // nearest + lightest
   const markeRecoil = impactOffset(frame, b1ImpactHit + 2, 10, -4.5);
   const deineRecoil = impactOffset(frame, b1ImpactHit + 4, 10, -3.5); // furthest + heaviest
@@ -170,8 +186,13 @@ export const OffscriptReel: React.FC = () => {
   const b3LogoStart = 144;
   const b3LogoExit = 196;
   const b3TextStart = 156;
-  const b3TextExit = 200;
-  const b3HitStart = 178; // the invisible swipe force lands here
+  // Beat 4 now starts six frames earlier (the rail has to be free before it
+  // can pivot), so beat 3's line has to be clear before CONTENT is dominant
+  // — otherwise the two beats sit on top of each other and the handoff
+  // reads as a dissolve instead of choreography.
+  const b3TextExit = 196;
+  const b3ExitStagger = [0, 2, 3, 5];
+  const b3HitStart = 170; // the invisible swipe force lands here
 
   // =========================================================================
   // BEAT 4 — SERVICES, one continuous surface.
@@ -179,11 +200,17 @@ export const OffscriptReel: React.FC = () => {
   // The rail draws, and the surface is already rising into frame, WHILE
   // beat 3's text is still leaving — otherwise there are dead frames at the
   // boundary where one beat has gone and the next has not arrived.
+  // The surface runs slightly earlier and slightly tighter than before, for
+  // one specific reason: the rail's pivot into the process line sweeps a
+  // quarter-circle out of the rail's own top, and that arc passes straight
+  // through where the service labels sit. There is no angle that avoids it —
+  // so the surface finishes and clears the mask BEFORE the rail lets go,
+  // and the sweep crosses empty frame.
   const b4RailGrow = 202;
   const b4AnchorStart = 202;
-  const b4MachineStart = 218;
-  const b4Slot = 25;
-  const b4AnchorExit = 316;
+  const b4MachineStart = 212;
+  const b4Slot = 23;
+  const b4AnchorExit = 306;
 
   // =========================================================================
   // BEAT 5 — THE MACHINE.
@@ -202,16 +229,76 @@ export const OffscriptReel: React.FC = () => {
   const b6Line1Start = b5LaunchStart + 10;
   const b6AnticStart = b6Line1Start + 22;
   const b6Line2Start = b6AnticStart + 6;
-  const b6ExitStart = 492;
-  const b6ExitEnd = 506;
+  const b6ExitStart = 486;
+  const b6ExitEnd = 500;
+  // The red rule under NICHT DURCH. — a hero accent that becomes the
+  // endcard's underline. It is the object that carries beat 6 into beat 7.
+  const b6RuleStart = b6Line2Start + 14;
+  const b6RuleTravel = 486;
+  const b6RuleTravelEnd = 508;
 
   // =========================================================================
-  // BEAT 7 — CTA.
+  // BEAT 7 — ENDCARD. Paper unfurls FROM the red rule, which comes to rest
+  // as offscript.ch's underline. Everything then stops, for a full second.
   // =========================================================================
-  const b7LogoStart = 502;
-  const b7TaglineStart = 520;
-  const b7UrlStart = 537;
-  const b7CtaStart = 548;
+  const b7PaperStart = 494;
+  const b7PaperEnd = 516;
+  const b7LogoStart = 506;
+  const b7UrlStart = 522;
+  const b7TaglineStart = 536;
+  const b7CtaStart = 544;
+
+  // Endcard geometry, anchored rather than centred by flow, so the rule's
+  // rest position is a number this file knows instead of whatever the stack
+  // happens to measure.
+  const EC_TOP = 616;
+  const EC_LOGO_W = 520;
+  const EC_URL_Y = 905;
+  // The rule is the width of the word it underlines, not a decorative bar
+  // that overhangs it, and it clears the descenders.
+  const EC_RULE_Y = 990;
+  const EC_RULE_W = 348;
+  const EC_RULE_X = (1080 - EC_RULE_W) / 2;
+
+  // =========================================================================
+  // SURFACES. Three changes, each performed by a moving object.
+  //
+  //   paper -> red    LANGWEILIG.'s own field floods (beat 1, already)
+  //   red   -> paper  that field lifts away             (beat 1, already)
+  //   paper -> navy   the process line expands vertically and turns
+  //   navy  -> paper  the hero's red rule unfurls the endcard from itself
+  //
+  // Type contrast is driven by the SAME progress values, so the surface and
+  // the typography can never disagree by even one frame.
+  // =========================================================================
+  // TWO expansions from the same seam, not one field changing colour.
+  // Interpolating #F20505 -> #0E1626 in RGB passes through a dead maroon for
+  // half a second, and a background crossfade is exactly what the brief
+  // rules out. So the red floods out of the process line, and then the navy
+  // floods out of that same line on top of it: shape, then shape.
+  const redGrow = easeProgress(frame, 368, 382, easeCamera);
+  const navyGrow = easeProgress(frame, 379, 395, easeCamera);
+  const paperGrow = easeProgress(frame, b7PaperStart, b7PaperEnd, easeCamera);
+
+  // Contrast rides the SAME progress values, so the surface and the type
+  // cannot disagree by a frame. The red state is brief, so its window is
+  // tight — type turns white just as the red reaches it.
+  const toneDark = blendTone(
+    blendTone(TONE.paper, TONE.red, easeProgress(frame, 370, 379, easeInOutCubic)),
+    TONE.navy,
+    easeProgress(frame, 381, 391, easeInOutCubic),
+  );
+  const tone = blendTone(toneDark, TONE.paper, paperGrow);
+
+  // The colour BEHIND the camera rig. The rig is what the camera impacts
+  // move, and a 4px nudge or a 0.9993 scale recoil pulls its edges inside
+  // the frame — which was fine while the whole Reel was paper and the
+  // sliver matched, and became a two-frame white flash down the left edge
+  // and across the top the moment a chapter went navy. The fields
+  // themselves grow from the centre, so the root is only ever exposed once
+  // a surface is already complete: a step, not a blend.
+  const rootSurface =
+    paperGrow > 0.999 ? SURFACE.paper : navyGrow > 0.999 ? SURFACE.navy : redGrow > 0.999 ? SURFACE.red : SURFACE.paper;
 
   // =========================================================================
   // THE CAMERA — four moments in twenty seconds, and not one of them is
@@ -228,8 +315,8 @@ export const OffscriptReel: React.FC = () => {
   //   NICHT DURCH.  lands        -> DOWN, the closing weight
   // =========================================================================
   const cameraImpacts: Impact[] = [
-    {start: b1ImpactHit, duration: 9, x: -2.5, y: 5, rotate: 0.16, cycles: 3},
-    {start: b3HitStart + 2, duration: 8, x: -4, y: 1.5, rotate: 0.08},
+    {start: b1ImpactHit, duration: 9, x: -2, y: 3.5, rotate: 0.12, cycles: 3},
+    {start: b3HitStart + 2, duration: 8, x: -2.5, y: 1, rotate: 0.05},
     {start: b5MetricStart + b5RollDur, duration: 9, scale: 0.006, y: 2},
     {start: b6Line2Start + 11, duration: 8, x: 1.5, y: 4, rotate: 0.1},
   ];
@@ -258,7 +345,7 @@ export const OffscriptReel: React.FC = () => {
   ];
 
   return (
-    <AbsoluteFill style={{backgroundColor: BRAND.background, overflow: 'hidden'}}>
+    <AbsoluteFill style={{backgroundColor: rootSurface, overflow: 'hidden'}}>
       {cues.map((cue, i) => (
         <Sequence key={i} from={Math.max(cue.frame, 0)} layout="none">
           <Audio src={staticFile(`sfx/${cue.file}`)} volume={cue.volume} />
@@ -288,27 +375,36 @@ export const OffscriptReel: React.FC = () => {
       )}
 
       <div style={{opacity: 1 - b1Consumed}}>
-        <HookWord frame={frame} text="DEINE" start={b1DeineStart} dur={15} fromY={280} fromScale={1.16} fontSize={HOOK_SIZE} left={CONTENT.left} top={286} extraY={deineRecoil} extraScale={1 - anticAmt} />
-        <HookWord frame={frame} text="MARKE" start={b1MarkeStart} dur={16} fromY={90} fromX={150} fromScale={1.12} fontSize={HOOK_SIZE} left={CONTENT.left + 200} top={470} extraY={markeRecoil} extraScale={1 - anticAmt} />
+        <HookWord frame={frame} text="DEINE" start={b1DeineStart} dur={15} fromY={280} fromZ={PLANE.secondary} fontSize={HOOK_SIZE} left={CONTENT.left} top={286} extraY={deineRecoil} extraScale={1 - anticAmt} />
+        <HookWord frame={frame} text="MARKE" start={b1MarkeStart} dur={16} fromY={90} fromX={150} fromZ={PLANE.background} fontSize={HOOK_SIZE} left={CONTENT.left + 200} top={470} extraY={markeRecoil} extraScale={1 - anticAmt} />
         <div style={{position: 'absolute', left: CONTENT.left + 2, top: 652, transform: `translateY(${istNichtRecoil}px)`}}>
-          <KineticWord text="IST NICHT" frame={frame} fps={fps} enterStart={b1IstNichtStart} enterDur={11} fontSize={42} fontWeight={700} color={BRAND.muted} fromY={26} transformOrigin="0% 100%" />
+          <KineticWord text="IST NICHT" frame={frame} fps={fps} enterStart={b1IstNichtStart} enterDur={11} fontSize={46} fontWeight={700} color={BRAND.muted} fromY={26} transformOrigin="0% 100%" />
         </div>
       </div>
 
       {/* LANGWEILIG. — red on the page, white once its own field is behind
           it, then faded away while the field holds full-frame. */}
-      <div style={{position: 'absolute', left: CONTENT.left - 6, top: 700, opacity: 1 - b1LwFade, transform: `translateY(${lwRecoil}px)`}}>
+      <div
+        style={{
+          position: 'absolute',
+          left: CONTENT.left - 6,
+          top: 700,
+          opacity: 1 - b1LwFade,
+          transform: `translateY(${lwRecoil}px) ${depth(lwZ)}`,
+          transformOrigin: '0% 50%',
+        }}
+      >
         <KineticWord
           text="LANGWEILIG."
           frame={frame}
           fps={fps}
           enterStart={b1ImpactStart}
           enterDur={b1ImpactDur}
-          fontSize={122}
+          fontSize={LW_SIZE}
           color={BRAND.red}
           impact
           tilt
-          scaleFrom={0.68}
+          scaleFrom={1}
           transformOrigin="0% 50%"
           maxBlur={32}
         />
@@ -319,11 +415,11 @@ export const OffscriptReel: React.FC = () => {
             fps={fps}
             enterStart={b1ImpactStart}
             enterDur={b1ImpactDur}
-            fontSize={122}
+            fontSize={LW_SIZE}
             color="#FFFFFF"
             impact
             tilt
-            scaleFrom={0.68}
+            scaleFrom={1}
             transformOrigin="0% 50%"
             maxBlur={32}
           />
@@ -338,7 +434,7 @@ export const OffscriptReel: React.FC = () => {
           fps={fps}
           enterStart={b2TextStart}
           exitStart={b2SwipeStart}
-          fontSize={76}
+          fontSize={70}
           align="left"
           style={{justifyContent: 'flex-start'}}
         />
@@ -349,7 +445,7 @@ export const OffscriptReel: React.FC = () => {
             fps={fps}
             enterStart={b2TextStart + 5}
             exitStart={b2SwipeStart}
-            fontSize={76}
+            fontSize={70}
             align="left"
             style={{justifyContent: 'flex-start'}}
           />
@@ -374,7 +470,8 @@ export const OffscriptReel: React.FC = () => {
           y={848}
           rotate={-2}
           depth={1}
-          size={40}
+          plane={PLANE.active}
+          size={46}
           label="327 VIEWS"
           child="+12/min"
           swipeProgress={swipeProgress}
@@ -390,7 +487,8 @@ export const OffscriptReel: React.FC = () => {
             y={982}
             rotate={3}
             depth={0.72}
-            size={30}
+            plane={PLANE.secondary}
+            size={36}
             label="0 SHARES"
             swipeProgress={swipeProgress}
             swipeDelay={0.06}
@@ -407,11 +505,11 @@ export const OffscriptReel: React.FC = () => {
             // layout and snaps text to whole pixels, so a smooth 900px
             // travel arrives as a staircase. Transforms are composited with
             // sub-pixel precision — same path, no stepping.
-            transform: `translateX(${skipX}px) rotate(${-skipP * 5}deg)`,
+            transform: `translateX(${skipX}px) rotate(${-skipP * 5}deg) ${depth(PLANE.active + 30)}`,
             filter: skipP > 0 && skipP < 1 ? `blur(${motionBlur(skipX - interpolate(easeProgress(frame - 1, skipTravelStart, skipTravelStart + skipTravelDur, easeInOutCubic), [0, 1], [0, 900]), 80, 12)}px)` : undefined,
           }}
         >
-          <MetaLabel text="SKIP →" color={BRAND.red} style={{fontSize: 30}} />
+          <MetaLabel text="SKIP →" color={BRAND.red} style={{fontSize: 36, letterSpacing: 2}} />
         </div>
       </div>
 
@@ -433,7 +531,9 @@ export const OffscriptReel: React.FC = () => {
                 fps={fps}
                 enterStart={b3TextStart}
                 exitStart={b3TextExit}
-                fontSize={52}
+                exitStagger={b3ExitStagger}
+                exitDur={7}
+                fontSize={48}
                 align="center"
               />
             </SwipeReact>
@@ -449,7 +549,9 @@ export const OffscriptReel: React.FC = () => {
                   fps={fps}
                   enterStart={b3TextStart + 4}
                   exitStart={b3TextExit}
-                  fontSize={52}
+                  exitStagger={b3ExitStagger}
+                  exitDur={7}
+                  fontSize={48}
                   align="center"
                 />
               </SwipeReact>
@@ -461,7 +563,8 @@ export const OffscriptReel: React.FC = () => {
                   fps={fps}
                   enterStart={b3TextStart + 10}
                   exitStart={b3TextExit}
-                  fontSize={52}
+                  exitDur={7}
+                  fontSize={48}
                   color={BRAND.red}
                   impact
                   transformOrigin="50% 100%"
@@ -482,12 +585,13 @@ export const OffscriptReel: React.FC = () => {
           frame={frame}
           start={b4MachineStart}
           slot={b4Slot}
-          hold={14}
+          hold={12}
           moveDur={11}
           rowHeight={250}
           width={widthAt(620)}
-          fontSize={132}
-          railGrowStart={b4RailGrow}
+          fontSize={122}
+          markerEnter={b4RailGrow + 8}
+          markerExit={302}
           services={[
             {label: 'CONTENT', kind: 'content'},
             {label: 'STRATEGIE', kind: 'strategy'},
@@ -497,89 +601,185 @@ export const OffscriptReel: React.FC = () => {
         />
       </div>
 
+      {/* The ONE red rule: the services rail, then the process connector.
+          It pivots about its own bottom end — the point where the rail
+          finishes and the chain begins — so the two states are visibly the
+          same object rather than two lines that resemble each other. */}
+      <MorphRule
+        frame={frame}
+        color={tone.accent}
+        rail={{x: CONTENT.left, y: 620, thickness: 4, length: 375}}
+        line={{x: 268, y: 1001, thickness: 5, length: 272}}
+        drawStart={b4RailGrow}
+        pivotStart={306}
+        pivotDur={14}
+        slideStart={314}
+        slideDur={14}
+        dropStart={316}
+        dropDur={16}
+        exitStart={380}
+      />
+
+      {/* THE DARK CHAPTER. The field does not fade in — it grows out of the
+          process line, vertically, from that line's own baseline, and only
+          then turns from red to navy. The background is choreography. */}
+      {redGrow > 0.001 && paperGrow < 0.999 && (
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            width: '100%',
+            height: '100%',
+            background: SURFACE.red,
+            transformOrigin: `50% ${(1001 / 1920) * 100}%`,
+            transform: `scaleY(${redGrow})`,
+          }}
+        />
+      )}
+      {navyGrow > 0.001 && paperGrow < 0.999 && (
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            width: '100%',
+            height: '100%',
+            background: SURFACE.navy,
+            transformOrigin: `50% ${(1001 / 1920) * 100}%`,
+            transform: `scaleY(${navyGrow})`,
+          }}
+        />
+      )}
+
       {/* ================= BEAT 5 — THE MACHINE ================= */}
       <div style={{position: 'absolute', left: CONTENT.left, top: 812}}>
-        <ProcessChain frame={frame} start={b5ChainStart} fontSize={80} growExitStart={b5LaunchStart} />
+        <ProcessChain frame={frame} start={b5ChainStart} fontSize={74} growExitStart={b5LaunchStart} tone={tone} externalLine />
       </div>
       {/* The roller sits in the same band the hero statement resolves into,
           so the explosion and the headline are one continuous mass rather
           than two things in two places. */}
-      <B5MetricLaunch frame={frame} launchStart={b5LaunchStart} launchEnd={b5LaunchEnd}>
-        <div style={{position: 'absolute', left: CONTENT.left, top: 860}}>
-          <MetricRoller frame={frame} fps={fps} start={b5MetricStart} duration={b5RollDur} values={['3K', '12K', '47K', '100K+']} fontSize={148} />
-        </div>
-      </B5MetricLaunch>
+      {/* 100K+ — emerges FROM depth, lands, then leaves THROUGH the viewer.
+          Z is the dominant axis for this whole moment; nothing else moves. */}
+      {/* The positioning is OUTSIDE the depth wrapper on purpose. A wrapper
+          whose only child is absolutely positioned has a zero-height box, so
+          `transformOrigin: 10% 50%` resolves to a point near the frame's top
+          -left and the Z push sends the number away from its own position
+          instead of toward the viewer. Positioned first, transformed second,
+          the origin means what it says. */}
+      <div style={{position: 'absolute', left: CONTENT.left, top: 860}}>
+        <B5MetricLaunch
+          frame={frame}
+          launchStart={b5LaunchStart}
+          launchEnd={b5LaunchEnd}
+          emergeStart={b5MetricStart}
+          emergeEnd={b5MetricStart + 20}
+        >
+          <MetricRoller frame={frame} fps={fps} start={b5MetricStart} duration={b5RollDur} values={['3K', '12K', '47K', '100K+']} fontSize={138} color={tone.ink} />
+        </B5MetricLaunch>
+      </div>
 
       {/* ================= BEAT 6 — HERO ================= */}
-      <B6Collapse frame={frame} exitStart={b6ExitStart} exitEnd={b6ExitEnd}>
-        {/* No ambient "breathing" scale here. A 1% sine on held display
-            type resamples every glyph every frame — the type shimmers
-            faintly for the whole hold, which is precisely the texture the
-            brief describes as jittery. A hold should be a hold; the energy
-            in this beat comes from what enters it, not from the headline
-            never sitting still. */}
-        <div style={{position: 'absolute', left: CONTENT.left, top: 840}}>
+      <div style={{position: 'absolute', left: CONTENT.left, top: 840}}>
+        <B6Collapse frame={frame} exitStart={b6ExitStart} exitEnd={b6ExitEnd}>
           <B6Antic frame={frame} anticStart={b6AnticStart} pushStart={b6Line2Start}>
-            {/* Resolves straight out of the counter's blur — a match, not an
-                entrance of its own. */}
+            {/* Resolves straight out of the counter's blur — the receiving
+                half of a Z match cut, not an entrance of its own. */}
             <MatchIn frame={frame} start={b6Line1Start} dur={16}>
-              <div style={{fontFamily: FONT, fontWeight: 800, fontSize: HERO_SIZE, letterSpacing: -3, color: BRAND.ink, whiteSpace: 'nowrap'}}>
+              <div style={{fontFamily: FONT, fontWeight: 800, fontSize: HERO_SIZE, letterSpacing: -3, color: tone.ink, whiteSpace: 'nowrap'}}>
                 FALL AUF.
               </div>
             </MatchIn>
           </B6Antic>
+          {/* Enters from deeper Z and settles onto nearly FALL AUF.'s plane.
+              Depth carries the scale, so the word itself does not also
+              scale — one mechanism per behaviour. */}
           <div style={{marginTop: 4}}>
-            <KineticWord
-              text="NICHT DURCH."
-              frame={frame}
-              fps={fps}
-              enterStart={b6Line2Start}
-              enterDur={18}
-              fontSize={HERO_SIZE}
-              color={BRAND.red}
-              impact
-              tilt
-              fromY={80}
-              transformOrigin="0% 0%"
-              maxBlur={34}
-            />
+            <DepthIn frame={frame} start={b6Line2Start} dur={18} from={PLANE.secondary} to={PLANE.base} origin="0% 50%">
+              <KineticWord
+                text="NICHT DURCH."
+                frame={frame}
+                fps={fps}
+                enterStart={b6Line2Start}
+                enterDur={18}
+                fontSize={HERO_SIZE}
+                color={tone.accent}
+                impact
+                tilt
+                fromY={80}
+                scaleFrom={1}
+                transformOrigin="0% 0%"
+                maxBlur={34}
+              />
+            </DepthIn>
           </div>
-        </div>
-      </B6Collapse>
+        </B6Collapse>
+      </div>
 
-      {/* ================= BEAT 7 — CTA ================= */}
-      <AbsoluteFill style={{alignItems: 'center', justifyContent: 'center'}}>
-        <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
-          <LogoReveal frame={frame} fps={fps} start={b7LogoStart} width={560} fromRotate={-6} fromScale={0.42} fromBlur={26} fadeIn={4} duration={18} />
-          <GraphicLine
-            orientation="h"
-            length={54}
-            progress={springProgress(frame, b7LogoStart + 14, b7LogoStart + 22, fps, SETTLE)}
-            origin="center"
-            style={{marginTop: 34}}
-          />
-          <div style={{marginTop: 30}}>
-            <KineticPhrase
-              words={[{text: 'CONTENT,'}, {text: 'DER'}, {text: 'HÄNGEN'}, {text: 'BLEIBT.'}]}
-              frame={frame}
-              fps={fps}
-              enterStart={b7TaglineStart}
-              fontSize={38}
-              align="center"
-            />
+      {/* The endcard's paper, unfurled FROM the red rule below — not a
+          crossfade, and not a new screen: the rule opens the frame. */}
+      {paperGrow > 0.001 && (
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            width: '100%',
+            height: '100%',
+            background: SURFACE.paper,
+            transformOrigin: `50% ${(EC_RULE_Y / 1920) * 100}%`,
+            transform: `scaleY(${paperGrow})`,
+          }}
+        />
+      )}
+
+      {/* THE shared red element: an accent rule under NICHT DURCH., which
+          travels and becomes offscript.ch's underline. Beat 6 does not end
+          and beat 7 begin — this object carries one into the other. */}
+      <HeroRule
+        frame={frame}
+        color={tone.accent}
+        start={b6RuleStart}
+        travelStart={b6RuleTravel}
+        travelEnd={b6RuleTravelEnd}
+        from={{x: CONTENT.left, y: 1096, w: 620, h: 7}}
+        to={{x: EC_RULE_X, y: EC_RULE_Y, w: EC_RULE_W, h: 4}}
+      />
+
+      {/* ================= BEAT 7 — ENDCARD =================
+          Hierarchy is logo, then the website, then the tagline, then the
+          CTA. The website is the thing a viewer has to be able to act on,
+          so it is set as a design element rather than as a footnote. */}
+      <div style={{position: 'absolute', left: 0, width: '100%', top: EC_TOP, display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+        <DepthIn frame={frame} start={b7LogoStart} dur={18} from={PLANE.secondary} to={PLANE.base}>
+          <LogoReveal frame={frame} fps={fps} start={b7LogoStart} width={EC_LOGO_W} fromRotate={-4} fromScale={0.9} fromBlur={18} fadeIn={5} duration={20} />
+        </DepthIn>
+        <div style={{height: EC_URL_Y - EC_TOP - Math.round((EC_LOGO_W * 480) / 1020)}} />
+        <B7FadeUp frame={frame} start={b7UrlStart}>
+          <span
+            style={{
+              fontFamily: FONT,
+              fontWeight: 600,
+              fontSize: 54,
+              letterSpacing: -1.2,
+              color: BRAND.ink,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            offscript.ch&nbsp;<span style={{color: BRAND.red, fontWeight: 500}}>↗</span>
+          </span>
+        </B7FadeUp>
+        <div style={{height: 42}} />
+        <B7FadeUp frame={frame} start={b7TaglineStart}>
+          <div style={{fontFamily: FONT, fontWeight: 600, fontSize: 30, letterSpacing: -0.2, color: BRAND.muted, whiteSpace: 'nowrap'}}>
+            CONTENT, DER HÄNGEN BLEIBT.
           </div>
-          <div style={{marginTop: 26}}>
-            <B7FadeUp frame={frame} start={b7UrlStart}>
-              <MetaLabel text="offscript.ch" color={BRAND.muted} style={{fontSize: 22}} />
-            </B7FadeUp>
-          </div>
-          <div style={{marginTop: 44}}>
-            <B7FadeUp frame={frame} start={b7CtaStart}>
-              <CTAArrow frame={frame} start={b7CtaStart + 6} />
-            </B7FadeUp>
-          </div>
-        </div>
-      </AbsoluteFill>
+        </B7FadeUp>
+        <div style={{height: 40}} />
+        <B7FadeUp frame={frame} start={b7CtaStart}>
+          <CTAArrow frame={frame} start={b7CtaStart + 6} />
+        </B7FadeUp>
+      </div>
       </CameraRig>
 
       {/* QC only — flip to true to check safe zones on a still. */}
@@ -602,13 +802,17 @@ const HookWord: React.FC<{
   dur: number;
   fromY?: number;
   fromX?: number;
-  fromScale?: number;
+  /** The plane it arrives FROM. The hook starts slightly behind the reading
+   *  plane and comes gently forward as it settles, rather than starting
+   *  oversized and shrinking — depth reads as approach, scale reads as a
+   *  scale animation. */
+  fromZ?: number;
   fontSize: number;
   left: number;
   top: number;
   extraY?: number;
   extraScale?: number;
-}> = ({frame, text, start, dur, fromY = 0, fromX = 0, fromScale = 1, fontSize, left, top, extraY = 0, extraScale = 1}) => {
+}> = ({frame, text, start, dur, fromY = 0, fromX = 0, fromZ = PLANE.secondary, fontSize, left, top, extraY = 0, extraScale = 1}) => {
   // Not yet started is NOT the same as at rest. An eased progress clamps to
   // 0 before its window opens, and 0 here is a perfectly valid VISIBLE pose
   // — offset and oversized — so the word would sit parked at its entry
@@ -623,7 +827,7 @@ const HookWord: React.FC<{
   const v = Math.abs(y - interpolate(pPrev, [0, 1], [fromY, 0])) + Math.abs(x - interpolate(pPrev, [0, 1], [fromX, 0]));
   const blur = motionBlur(v, fontSize * 0.34, 36);
   const stretch = velocityStretch(v, fontSize * 0.34, 0.1);
-  const scale = interpolate(p, [0, 1], [fromScale, 1]) * extraScale;
+  const z = interpolate(p, [0, 1], [fromZ, PLANE.base]);
   // Two frames of ramp, spent entirely inside the entry blur, so the word
   // resolves out of its own smear instead of switching on.
   const opacity = easeProgress(frame, start, start + 2, easeOutCubic);
@@ -643,7 +847,7 @@ const HookWord: React.FC<{
         color: BRAND.ink,
         whiteSpace: 'nowrap',
         filter: blur ? `blur(${blur}px)` : undefined,
-        transform: `translate(${x}px, ${y + extraY}px) scale(${scale}, ${scale * stretch})`,
+        transform: `translate(${x}px, ${y + extraY}px) scale(${extraScale}, ${extraScale * stretch}) ${depth(z)}`,
         transformOrigin: '0% 50%',
       }}
     >
@@ -740,13 +944,24 @@ const SwipeResist: React.FC<{frame: number; fps: number; hitStart: number; child
   // then falling off a cliff.
   const blur = motionBlur(v, 42, 24);
   const stretch = velocityStretch(v, 42, 0.16);
+  // X is the dominant axis and stays dominant. The other two are support:
+  // a rotateY of at most 4 degrees, so the leading edge turns very slightly
+  // away from the force, and a small push BACK in Z at the peak, as though
+  // the swipe pressed it into the page before it springs to the base plane.
+  // Both are driven by the same trajectory, so all three land on rest
+  // together and nothing is left ringing.
+  const drive = x / SWIPE_THROW;
+  const rotY = -drive * 4;
+  const z = -Math.abs(drive) * 64;
   return (
     <div
       style={{
         display: 'inline-block',
-        transform: `translateX(${x}px) scale(${stretch}, 1)`,
+        transform: `translateX(${x}px) rotateY(${rotY}deg) scale(${stretch}, 1) ${depth(z)}`,
         filter: blur ? `blur(${blur}px)` : undefined,
-        transformOrigin: '50% 50%',
+        // The word pivots about the edge the force arrives from, not its
+        // middle — that is what makes the turn read as resistance.
+        transformOrigin: '0% 50%',
       }}
     >
       {children}
@@ -805,19 +1020,112 @@ const B4Anchor: React.FC<{frame: number; start: number; exitStart: number}> = ({
   );
 };
 
-/** The counter explodes toward camera — that explosion IS the transition. */
-const B5MetricLaunch: React.FC<{frame: number; launchStart: number; launchEnd: number; children: React.ReactNode}> = ({
-  frame,
-  launchStart,
-  launchEnd,
-  children,
-}) => {
+/**
+ * 100K+ emerges from depth, lands, and then leaves THROUGH the viewer.
+ *
+ * Z is the only axis that moves here, which is the point: a Z pass reads as
+ * the object coming at you rather than as a scale animation, and it gives
+ * the transition into FALL AUF. a physical reason to exist. As the glyphs
+ * exceed the viewport their blurred mass IS the transition surface.
+ *
+ * Blur is divided by the depth scale because a CSS filter is applied in the
+ * element's LOCAL space and the transform magnifies the result — at a 3.6x
+ * projection an undivided 60px blur would land as 215px of mush.
+ */
+const B5MetricLaunch: React.FC<{
+  frame: number;
+  launchStart: number;
+  launchEnd: number;
+  emergeStart: number;
+  emergeEnd: number;
+  children: React.ReactNode;
+}> = ({frame, launchStart, launchEnd, emergeStart, emergeEnd, children}) => {
+  const emerge = easeProgress(frame, emergeStart, emergeEnd, easeCamera);
+  const zRest = interpolate(emerge, [0, 1], [PLANE.secondary, PLANE.base]);
+
   const p = easeProgress(frame, launchStart, launchEnd, easeInCubic);
   if (p >= 0.999) return null;
-  const scale = interpolate(p, [0, 1], [1, 3.8]);
-  const blur = interpolate(p, [0, 1], [0, 38]);
-  const opacity = Math.max(0, smoothKeys(p, [0, 0.75, 1], [1, 0.35, 0]));
-  return <div style={{transform: `scale(${scale})`, transformOrigin: '10% 50%', filter: blur ? `blur(${blur}px)` : undefined, opacity}}>{children}</div>;
+  const z = zRest + interpolate(p, [0, 1], [0, 1150]);
+  const scale = depthScale(z);
+  const blur = interpolate(p, [0, 1], [0, 62]) / Math.max(scale, 1);
+  // Opacity is held while the glyphs are still growing past the viewport —
+  // that oversized blurred mass IS the transition surface, so fading it out
+  // early would leave the cut with nothing to happen inside.
+  const opacity = Math.max(0, smoothKeys(p, [0, 0.55, 0.86, 1], [1, 0.92, 0.4, 0]));
+  return (
+    <div
+      style={{
+        transform: depth(z),
+        // Origin on the number's own left edge, where it actually sits —
+        // pushing from the centre of an empty box would slide it sideways.
+        transformOrigin: '10% 50%',
+        filter: blur > 0.05 ? `blur(${blur}px)` : undefined,
+        opacity,
+      }}
+    >
+      {children}
+    </div>
+  );
+};
+
+/** Arrive from (or depart to) a named depth plane. The one way anything in
+ *  the Reel moves between planes, so entrances cannot drift apart. */
+const DepthIn: React.FC<{
+  frame: number;
+  start: number;
+  dur: number;
+  from: number;
+  to: number;
+  origin?: string;
+  children: React.ReactNode;
+}> = ({frame, start, dur, from, to, origin = '50% 50%', children}) => {
+  const p = easeProgress(frame, start, start + dur, easeCamera);
+  const z = interpolate(p, [0, 1], [from, to]);
+  return (
+    <div style={{transform: depth(z), transformOrigin: origin}}>{children}</div>
+  );
+};
+
+/**
+ * The red rule that belongs to two beats.
+ *
+ * It is an accent under NICHT DURCH., and it is offscript.ch's underline.
+ * Between them it travels and resizes, and the endcard's paper unfurls from
+ * its line — so the calm final screen is something this object opened, not
+ * a scene that replaced the previous one.
+ */
+const HeroRule: React.FC<{
+  frame: number;
+  color: string;
+  start: number;
+  travelStart: number;
+  travelEnd: number;
+  from: {x: number; y: number; w: number; h: number};
+  to: {x: number; y: number; w: number; h: number};
+}> = ({frame, color, start, travelStart, travelEnd, from, to}) => {
+  if (frame < start) return null;
+  // Draws itself out of the word above it, left to right, once.
+  const draw = easeProgress(frame, start, start + 14, easeCamera);
+  const t = easeProgress(frame, travelStart, travelEnd, easeCamera);
+  const x = interpolate(t, [0, 1], [from.x, to.x]);
+  const y = interpolate(t, [0, 1], [from.y, to.y]);
+  const w = interpolate(t, [0, 1], [from.w, to.w]);
+  const h = interpolate(t, [0, 1], [from.h, to.h]);
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: 0,
+        top: 0,
+        width: from.w,
+        height: from.h,
+        background: color,
+        borderRadius: h / 2,
+        transformOrigin: '0% 50%',
+        transform: `translate(${x}px, ${y}px) scale(${(w / from.w) * draw}, ${h / from.h})`,
+      }}
+    />
+  );
 };
 
 /** Resolves out of an oversized blur — the receiving half of a match cut. */
@@ -827,13 +1135,18 @@ const MatchIn: React.FC<{frame: number; start: number; dur: number; children: Re
   // as a snap followed by a hold. Same distance, same window, spread over
   // the frames it actually occupies.
   const p = easeProgress(frame, start, start + dur, easeOutQuint);
-  const scale = interpolate(p, [0, 1], [2.4, 1]);
+  // Arrives from just short of the plane 100K+ left through, and settles on
+  // ACTIVE — the same depth axis, so the two halves of the cut are the same
+  // move continued rather than two different animations.
+  const z = interpolate(p, [0, 1], [812, PLANE.active]);
+  const scale = depthScale(z);
   // Blur resolves on a smooth curve that reaches 0 at zero rate — a blur
-  // that pops off the instant an object lands is as visible as a jump.
-  const blur = Math.max(0, smoothKeys(p, [0, 0.55, 1], [30, 6, 0]));
+  // that pops off the instant an object lands is as visible as a jump — and
+  // is divided by the projection so it means the same thing on screen.
+  const blur = Math.max(0, smoothKeys(p, [0, 0.55, 1], [30, 6, 0])) / Math.max(scale, 1);
   const opacity = interpolate(p, [0, 0.25], [0, 1], {extrapolateRight: 'clamp'});
   return (
-    <div style={{transform: `scale(${scale})`, transformOrigin: '0% 50%', filter: blur ? `blur(${blur}px)` : undefined, opacity}}>
+    <div style={{transform: depth(z), transformOrigin: '0% 50%', filter: blur > 0.05 ? `blur(${blur}px)` : undefined, opacity}}>
       {children}
     </div>
   );

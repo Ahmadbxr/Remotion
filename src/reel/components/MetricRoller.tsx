@@ -13,6 +13,7 @@ type Props = {
   values: string[];
   slotHeight?: number;
   fontSize: number;
+  color?: string;
   style?: React.CSSProperties;
 };
 
@@ -49,6 +50,7 @@ export const MetricRoller: React.FC<Props> = ({
   values,
   slotHeight,
   fontSize,
+  color = BRAND.ink,
   style,
 }) => {
   if (frame < start - 1) return null;
@@ -129,7 +131,7 @@ export const MetricRoller: React.FC<Props> = ({
               fontWeight: 800,
               fontSize,
               letterSpacing: -3,
-              color: BRAND.ink,
+              color,
               fontVariantNumeric: 'tabular-nums',
               whiteSpace: 'nowrap',
             }}

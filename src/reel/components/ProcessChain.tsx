@@ -1,6 +1,7 @@
 import React from 'react';
 import {interpolate} from 'remotion';
-import {BRAND, FONT} from '../theme';
+import {FONT} from '../theme';
+import {Tone} from '../motion/palette';
 import {easeProgress, easeOutExpo, easeInExpo, easeInOutCubic} from '../motion/easings';
 import {motionBlur} from '../motion/velocity';
 import {GraphicLine, GraphicFrame, GraphicPlayhead} from './Motifs';
@@ -11,6 +12,13 @@ type Props = {
   fontSize: number;
   /** When GROW hands the frame over entirely (synced to the metric launch). */
   growExitStart: number;
+  /** Resolved for the CURRENT surface. The chain straddles the switch to the
+   *  dark chapter, so its colours arrive already blended rather than being
+   *  read from a fixed brand token that would survive the background. */
+  tone: Tone;
+  /** The connector is drawn by the shared red rule (it was the service rail
+   *  a moment ago), so the chain must not draw a second one of its own. */
+  externalLine?: boolean;
 };
 
 /**
@@ -29,7 +37,7 @@ type Props = {
  * IDEA and its line stay visible (dimmed back) through the SHOOT/EDIT
  * stage, so the causal path is legible the whole way across.
  */
-export const ProcessChain: React.FC<Props> = ({frame, start, fontSize, growExitStart}) => {
+export const ProcessChain: React.FC<Props> = ({frame, start, fontSize, growExitStart, tone, externalLine}) => {
   const S = start;
 
   // ---- IDEA: arrives from the left, decisive bezier, not a spring ----
@@ -91,7 +99,7 @@ export const ProcessChain: React.FC<Props> = ({frame, start, fontSize, growExitS
     fontSize,
     letterSpacing: -2,
     whiteSpace: 'nowrap',
-    color: BRAND.ink,
+    color: tone.ink,
   };
 
   const BOX_L = 468;
@@ -107,7 +115,7 @@ export const ProcessChain: React.FC<Props> = ({frame, start, fontSize, growExitS
         </div>
       )}
 
-      {lineP > 0.002 && lineOpacity > 0.002 && (
+      {!externalLine && lineP > 0.002 && lineOpacity > 0.002 && (
         <GraphicLine
           orientation="h"
           length={272}
@@ -133,7 +141,7 @@ export const ProcessChain: React.FC<Props> = ({frame, start, fontSize, growExitS
             transformOrigin: '50% 50%',
           }}
         >
-          <GraphicFrame width={BOX_W} height={BOX_H} progress={frameDrawP} cornerLen={30} strokeWidth={4} />
+          <GraphicFrame width={BOX_W} height={BOX_H} progress={frameDrawP} cornerLen={30} strokeWidth={4} color={tone.ink} />
           {shootOpacity > 0.002 && (
             <div style={{position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: shootOpacity, ...wordStyle}}>
               SHOOT
@@ -175,7 +183,7 @@ export const ProcessChain: React.FC<Props> = ({frame, start, fontSize, growExitS
             transform: `translateY(${growY}px)`,
             ...wordStyle,
             fontSize: fontSize * 0.62,
-            color: BRAND.red,
+            color: tone.accent,
             letterSpacing: 2,
           }}
         >

@@ -749,6 +749,96 @@ Result: 600 frames, 9 frames exceed the 3.2-sigma jerk threshold and every
 one of them is an intended event — the red flood (a clean
 accelerate/peak/decelerate bell) and the wipe's graded tail.
 
+### 2.5D / morph / readability upgrade
+
+A controlled upgrade on top of the smoothness pass, in the brief's priority
+order: readability first, smoothness never traded for effects.
+
+**Readability.** Primary display type down 6-8% across the board (hook
+208 -> 192, hero 116 -> 108, services 132 -> 122, LANGWEILIG. 122 -> 114,
+process 80 -> 74, metric 148 -> 138) — less edge pressure, more air, faster
+comprehension. Small UI went the other way, because it was the stuff you had
+to work to read: 327 VIEWS 40 -> 46, 0 SHARES 30 -> 36, SKIP 30 -> 36,
+service indices 19 -> 24, meta labels 18 -> 22.
+
+**The depth system** (`motion/depth.ts`). Six named planes — background,
+secondary, base, active, impact, pass — and no component invents a Z value
+of its own. Perspective is applied PER ELEMENT rather than once on an
+ancestor, for two practical reasons: an ancestor `perspective` projects
+every descendant from one shared vanishing point, so elements far from
+centre get pushed sideways the moment depth exists at all (it would have
+silently moved a layout already verified against the safe zones), and per
+element `translateZ(0)` is exactly the identity transform, so adding depth
+to one thing cannot disturb anything else. Cross-element parallax is
+therefore asked for explicitly (`parallaxFactor`) instead of falling out of
+the projection — the right trade for depth that should be felt, not noticed.
+
+One dominant axis per beat: the hook and 100K+ move on Z, the services on
+Y with a supporting Z, the swipe on X, the process on X.
+
+**Morphs.** Three, each a single object doing two jobs rather than two
+objects swapping:
+
+- *Services -> process.* The red rail the four services are measured against
+  IS the horizontal connector the chain is built on — one div, pivoting
+  about its own top point. The path is choreographed in three overlapping
+  phases (pivot high, slide right, only then drop) and that is not
+  fussiness: pivoting and travelling together swept the rule diagonally
+  straight through the word IDEA. There is no angle that avoids the service
+  labels either, so the surface now finishes and clears its mask before the
+  rail lets go, and the arc crosses empty frame.
+- *Process -> dark chapter.* The process line expands vertically out of its
+  own baseline to flood the frame. Then the navy floods out of that same
+  line on top of it — two expansions, not one field changing colour, because
+  interpolating #F20505 -> #0E1626 in RGB sits in a dead maroon for half a
+  second and a background crossfade is what the brief rules out.
+- *Hero -> endcard.* A red rule under NICHT DURCH. travels and becomes
+  offscript.ch's underline, and the endcard's paper unfurls from its line.
+  The calm final screen is something that object opened.
+
+**Contrast is never a separate animation.** `motion/palette.ts` defines
+surfaces (paper / red / navy) with their on-surface tones, and `blendTone`
+is driven by the SAME progress values as the surfaces themselves — there is
+no path through the timeline where the background has moved and the
+typography has not. Brand red is lifted to #FF4433 on navy, where #F20505
+sits at about 3:1 and is marginal as text.
+
+**Endcard.** Hierarchy is logo, then the website, then the tagline, then the
+CTA. offscript.ch went 22 -> 54px (2.45x) in semibold grotesk with a red
+underline the width of the word it underlines, and the tagline moved out of
+mono meta type into a real tagline so it outranks the CTA. Everything is
+still by ~570, giving a full second of stillness to read the URL.
+
+**Bugs found and fixed in QC:**
+
+- *100K+ scaled away from its own position.* The depth wrapper's only child
+  was absolutely positioned, so the wrapper had a zero-height box and
+  `transformOrigin: 10% 50%` resolved to a point near the frame's top-left —
+  the Z push sent the number down and off-frame instead of toward the
+  viewer, trailing the rectangular artifact that reads as a clipped shadow.
+  The same mistake was in the hero's collapse wrapper. Positioned first,
+  transformed second, both origins now mean what they say, and the Z pass
+  is clean with no container edge at any frame.
+- *A two-frame white flash down the left edge and across the top.* Camera
+  impacts move the rig, and a 4px nudge or a 0.9993 scale recoil pulls its
+  edges inside the frame. That was invisible while the whole Reel was paper
+  and the sliver matched — and became a flash the moment a chapter went
+  navy. The root now carries the current surface as a step (the fields grow
+  from the centre, so the root is only ever exposed once a surface is
+  already complete).
+- *327 VIEWS drifted out of the safe area* when it came forward, because it
+  scaled about its own middle. Anchored on its left edge instead.
+- *Beat 3 sat on top of CONTENT* once the services moved earlier to free the
+  rail; its exit stagger was tightened so the line is clear before the first
+  service is dominant.
+
+**Verified:** the jerk profile is unchanged from the smoothness pass — 15
+frames over the 3.2-sigma threshold, every one an intended event (the red
+flood, the wipe tail, the dark takeover, the metric launch, the paper
+unfurl), each a clean accelerate/peak/decelerate bell. All 600 frames were
+checked against the safe zones: no information crosses, and everything
+flagged is either 1px antialiasing or genuinely decorative motion.
+
 ## Usage
 
 ```bash

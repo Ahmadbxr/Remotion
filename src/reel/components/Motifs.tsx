@@ -40,9 +40,10 @@ export const GraphicLine: React.FC<{
 
 /** A small marker traveling along an implicit line — the "playhead"
  *  variant of the red-line motif (used for EDIT's scrubber). */
-export const GraphicPlayhead: React.FC<{trackWidth: number; progress: number; style?: React.CSSProperties}> = ({
+export const GraphicPlayhead: React.FC<{trackWidth: number; progress: number; color?: string; style?: React.CSSProperties}> = ({
   trackWidth,
   progress,
+  color = BRAND.red,
   style,
 }) => (
   <div
@@ -51,7 +52,7 @@ export const GraphicPlayhead: React.FC<{trackWidth: number; progress: number; st
       width: 3,
       height: 22,
       borderRadius: 2,
-      background: BRAND.red,
+      background: color,
       left: 0,
       // Transform, not `left` — a layout property animated frame by frame
       // gets pixel-snapped and the playhead sweeps in visible steps.
@@ -105,9 +106,11 @@ export const MetaLabel: React.FC<{
   <div
     style={{
       fontFamily: MONO,
-      fontSize: 18,
+      // 22, not 18. Meta type is still meta, but it has to be legible at a
+      // glance on a phone rather than "readable if you go looking for it".
+      fontSize: 22,
       fontWeight: 600,
-      letterSpacing: 3,
+      letterSpacing: 2.5,
       color,
       opacity,
       whiteSpace: 'nowrap',

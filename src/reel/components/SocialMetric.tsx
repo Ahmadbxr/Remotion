@@ -3,6 +3,7 @@ import {interpolate} from 'remotion';
 import {BRAND, MONO} from '../theme';
 import {springProgress, withOvershoot, CARD} from '../motion/springs';
 import {motionBlur} from '../motion/velocity';
+import {PLANE, depth as depthT, parallaxFactor} from '../motion/depth';
 
 type Props = {
   frame: number;
@@ -13,6 +14,11 @@ type Props = {
   rotate?: number;
   /** 0 = background (less contrast, slower, smaller travel), 1 = foreground. */
   depth?: number;
+  /** Which depth plane this signal sits on. The headline is the base plane;
+   *  these sit either side of it, and they travel by different amounts when
+   *  the whole UI is swiped away — which is what makes the swipe feel like
+   *  it has thickness rather than being one flat sheet sliding off. */
+  plane?: number;
   accent?: boolean;
   label: string;
   /** Type size — these are few and strong now, not many and tiny. */
@@ -38,6 +44,7 @@ export const SocialMetric: React.FC<Props> = ({
   y,
   rotate = 0,
   depth = 1,
+  plane = PLANE.base,
   accent = false,
   label,
   size = 19,
@@ -63,7 +70,11 @@ export const SocialMetric: React.FC<Props> = ({
   const opacity = interpolate(enterP, [0, 1], [0, 0.55 + depth * 0.45]) * interpolate(sp, [0, 1], [1, 0]);
   if (opacity <= 0.002) return null;
 
-  const swipeX = sp * swipeDirection * 700 * (0.6 + depth * 0.4);
+  // Parallax, from the shared plane system: nearer signals travel further.
+  // Strength is dialled up from the geometric default because a 6% spread
+  // over 700px is not enough to read, and a 28% spread is still well short
+  // of looking like a 3D scene.
+  const swipeX = sp * swipeDirection * 700 * parallaxFactor(plane, 2.2);
   const rot = withOvershoot(enterP, rotate * 2.5, rotate, 0.08) + sp * swipeDirection * 16;
 
   const childP = interpolate(frame, [enterStart + 5, enterStart + 5 + 8], [0, 1], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
@@ -76,7 +87,11 @@ export const SocialMetric: React.FC<Props> = ({
         top: y,
         opacity,
         filter: blur ? `blur(${blur}px)` : undefined,
-        transform: `translate(${swipeX}px, ${y0}px) rotate(${rot}deg) scale(${scale})`,
+        transform: `translate(${swipeX}px, ${y0}px) rotate(${rot}deg) scale(${scale}) ${depthT(plane)}`,
+        // Anchored on its left edge, not its middle: a signal pinned to the
+        // headline's margin should grow rightward when it comes forward,
+        // not spread both ways and push its left edge out of the safe area.
+        transformOrigin: '0% 50%',
       }}
     >
       <div
@@ -95,7 +110,7 @@ export const SocialMetric: React.FC<Props> = ({
         <div
           style={{
             fontFamily: MONO,
-            fontSize: Math.round(size * 0.62),
+            fontSize: Math.round(size * 0.68),
             color: BRAND.muted,
             opacity: childP,
             transform: `translateY(${interpolate(childP, [0, 1], [-6, 0])}px)`,
