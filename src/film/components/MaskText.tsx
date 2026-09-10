@@ -37,6 +37,9 @@ type Props = {
   /** Peak blur (px) at high velocity. Bigger text can carry more —
    *  headlines pass ~12-14, small labels use the ~6 default. */
   maxBlur?: number;
+  /** Position-overshoot amount (fraction of rowHeight) on the mask-reveal
+   *  settle. Scale-overshoot rides proportionally with it. */
+  overshootAmount?: number;
   /** Faint trailing ghost copies that appear only while moving fast, to
    *  simulate directional motion blur beyond what filter: blur() alone
    *  reads as. Disabled automatically at rest (zero velocity = zero
@@ -77,6 +80,7 @@ export const MaskText: React.FC<Props> = ({
   exitPrev,
   exitDistance = -35,
   maxBlur = 6,
+  overshootAmount = 0.035,
   ghosts = true,
   staggerFraction = 0.75,
   style,
@@ -106,7 +110,7 @@ export const MaskText: React.FC<Props> = ({
         // reveal itself stays the dominant motion, this just keeps its
         // landing from reading as a hard linear stop.
         const posAt = (le: number, ex: number) =>
-          withOvershoot(le, rowHeight, 0, 0.02) + interpolate(ex, [0, 1], [0, exitDistance]);
+          withOvershoot(le, rowHeight, 0, overshootAmount) + interpolate(ex, [0, 1], [0, exitDistance]);
 
         const translateY = posAt(localEnter, exit);
         const translateYPrev = posAt(localEnterPrev, xp);
@@ -116,7 +120,7 @@ export const MaskText: React.FC<Props> = ({
         const blur = getMotionBlur(velocityPx, maxVelocityPx, maxBlur);
 
         const opacity = interpolate(localEnter, [0, 1], [0, 1]) * interpolate(exit, [0, 1], [1, 0]);
-        const enterScale = withOvershoot(localEnter, 0.985, 1, 0.6);
+        const enterScale = withOvershoot(localEnter, 1 - overshootAmount * 0.7, 1, 0.6);
         const exitScale = interpolate(exit, [0, 1], [1, 0.99]);
         const scale = enterScale * exitScale;
         const tracking = interpolate(localEnter, [0, 1], [letterSpacingFrom, letterSpacingTo]);

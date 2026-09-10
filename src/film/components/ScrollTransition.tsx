@@ -11,10 +11,10 @@ export type ScrollLayerState = {
 
 const clamp01 = (v: number) => Math.min(Math.max(v, 0), 1);
 
-// Icons get a much lighter motion blur than text (max ~5px), and only
-// while the layer is spatially moving — never during its own path-drawing.
-const MAX_SCROLL_VELOCITY = 14; // px/frame — a fast stretch of the travel
-const MAX_ICON_BLUR = 5;
+// Icons get a much lighter motion blur than text, and only while the layer
+// is spatially moving — never during its own path-drawing.
+const MAX_SCROLL_VELOCITY = 16; // px/frame — a fast stretch of the travel
+const MAX_ICON_BLUR = 7;
 
 /**
  * The outgoing half of a scroll transition: drifts up and slightly away,
@@ -28,7 +28,7 @@ const MAX_ICON_BLUR = 5;
 export const scrollOut = (progress: number, parallax = 1, progressPrev?: number): ScrollLayerState => {
   const p = clamp01(progress);
   const pPrev = clamp01(progressPrev ?? progress);
-  const travel = (v: number) => interpolate(v, [0, 0.7, 1], [0, -100 * parallax, -130 * parallax]);
+  const travel = (v: number) => interpolate(v, [0, 0.7, 1], [0, -125 * parallax, -160 * parallax]);
   const translateY = travel(p);
   const blur = getMotionBlur(translateY - travel(pPrev), MAX_SCROLL_VELOCITY, MAX_ICON_BLUR);
   return {
@@ -54,7 +54,7 @@ export const scrollOut = (progress: number, parallax = 1, progressPrev?: number)
 export const scrollIn = (progress: number, parallax = 1, progressPrev?: number): ScrollLayerState => {
   const p = clamp01(progress);
   const pPrev = clamp01(progressPrev ?? progress);
-  const travel = (v: number) => scrollSettle(v, 150 * parallax, 0);
+  const travel = (v: number) => scrollSettle(v, 175 * parallax, 0);
   const translateY = travel(p);
   const blur = getMotionBlur(translateY - travel(pPrev), MAX_SCROLL_VELOCITY, MAX_ICON_BLUR);
   return {

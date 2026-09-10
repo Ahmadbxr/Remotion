@@ -4,6 +4,7 @@ import {FILM_COLORS, TIMELINE} from './theme';
 import {morphProgress, withOvershoot, getMotionBlur, OFFSCRIPT_FAST, OFFSCRIPT_SMOOTH, OFFSCRIPT_OVERSHOOT, OFFSCRIPT_SCROLL, OFFSCRIPT_FLIP, OFFSCRIPT_SETTLE} from './springs';
 import {MorphingPill} from './components/MorphingPill';
 import {MaskText} from './components/MaskText';
+import {KineticWords} from './components/KineticWords';
 import {StatOdometer} from './components/StatOdometer';
 import {CameraFrame} from './components/CameraFrame';
 import {EditingTimeline} from './components/EditingTimeline';
@@ -107,8 +108,8 @@ type HeroState = HeroKF & {blur: number};
 // the last, run through getMotionBlur — not a hand-timed blur pulse, and
 // exactly 0 the instant a hold begins (nothing is moving) so readable
 // states (the pill hold, the services card, a quiet rule) stay crisp.
-const HERO_MAX_VELOCITY = 22; // px/frame combined width+height change — a fast morph
-const HERO_MAX_BLUR = 9;
+const HERO_MAX_VELOCITY = 20; // px/frame combined width+height change — a fast morph
+const HERO_MAX_BLUR = 19; // major structural morphs get a strong, clearly-readable blur peak
 
 const getHero = (frame: number, fps: number): HeroState => {
   const cur = computeHeroAt(frame, fps);
@@ -117,6 +118,47 @@ const getHero = (frame: number, fps: number): HeroState => {
   const blur = getMotionBlur(velocity, HERO_MAX_VELOCITY, HERO_MAX_BLUR);
   return {...cur, blur};
 };
+
+// A subtle virtual camera: a whole-frame scale pulse motivated by, and only
+// by, an actual scene transition — never a random ambient zoom. Each beat
+// is a smooth push-in-then-settle bump (sine-shaped, not a spring, so it's
+// perfectly symmetric and always returns exactly to 1.0), applied to a
+// wrapper around the whole visual tree. Because the wrapper is absolutely
+// positioned and sized to the full frame BEFORE the transform is applied,
+// every child's percentage-based positioning still resolves against the
+// same 1080x1920 box — the transform only scales the final paint, so nothing
+// inside needs to know the camera exists.
+const CAMERA_BEATS = [
+  T.pillToRule, // pill collapsing to a rule
+  T.headlineHold, // headline dispersing into the card-forming beat
+  T.servicesCardIn, // arriving into the services section
+  T.servicesEnd - T.serviceTransitionFrames, // the last service handing off to the camera-push exit
+  T.compressStart, // the rule compressing before it stretches into the logo's line
+  T.logoIn, // the logo itself arriving
+];
+const CAMERA_PULSE_DURATION = 16;
+const CAMERA_PULSE_AMOUNT = 0.022;
+
+const cameraScaleAt = (frame: number): number => {
+  let bump = 0;
+  for (const beat of CAMERA_BEATS) {
+    const t = frame - beat;
+    if (t >= 0 && t <= CAMERA_PULSE_DURATION) {
+      const b = Math.sin((Math.PI * t) / CAMERA_PULSE_DURATION) * CAMERA_PULSE_AMOUNT;
+      if (b > bump) bump = b;
+    }
+  }
+  return 1 + bump;
+};
+
+// A continuous, very slow breathing scale so no hold ever reads as
+// completely dead — small enough (≤1.5%) and slow enough that it never
+// registers as motion blur, only as "the frame is alive." Different phase
+// per layer so the hero and the stats don't move in perfect lockstep,
+// which is what actually reads as depth/parallax rather than one flat
+// plane pulsing uniformly.
+const microDrift = (frame: number, fps: number, amplitude = 0.013, freq = 0.55, phase = 0) =>
+  1 + Math.sin((frame / fps) * freq * Math.PI * 2 + phase) * amplitude;
 
 // ---------------------------------------------------------------------------
 // Services — treated as their own hero section. Each of the six gets a
@@ -173,21 +215,27 @@ const SFX_CUES: SfxCue[] = [
   {frame: T.compressEnd, file: 'soft-settle.wav', volume: 0.5},
   {frame: T.lineTravelEnd, file: 'soft-settle.wav', volume: 0.45},
 
-  // Morph-tone: the two blur/scale-crossfade beats (rule -> services card,
-  // and the SCHNITT -> CREATOR morph transition).
-  {frame: T.servicesCardIn, file: 'morph-tone.wav', volume: 0.4},
-  {frame: serviceAbsStart(3) + TRANSITION_START, file: 'morph-tone.wav', volume: 0.45},
+  // Morph-tone: the blur/scale-crossfade beats (rule -> services card, the
+  // SCHNITT -> CREATOR morph transition) plus the two new camera-pulse
+  // beats that don't already coincide with another cue (headline
+  // dispersing into the card-forming beat; the rule compressing before it
+  // stretches into the logo's line) — quiet, background reinforcement,
+  // never a dominant hit.
+  {frame: T.servicesCardIn, file: 'morph-tone.wav', volume: 0.42},
+  {frame: serviceAbsStart(3) + TRANSITION_START, file: 'morph-tone.wav', volume: 0.5},
+  {frame: T.headlineHold, file: 'morph-tone.wav', volume: 0.3},
+  {frame: T.compressStart, file: 'morph-tone.wav', volume: 0.3},
 
   // Flip transitions (KONZEPTION->VIDEODREH, FOTOGRAFIE->SCHNITT): air
   // starts ~2 frames ahead of the visible rotation.
-  {frame: serviceAbsStart(0) + TRANSITION_START - 2, file: 'flip-air.wav', volume: 0.5},
-  {frame: serviceAbsStart(2) + TRANSITION_START - 2, file: 'flip-air.wav', volume: 0.5},
+  {frame: serviceAbsStart(0) + TRANSITION_START - 2, file: 'flip-air.wav', volume: 0.6},
+  {frame: serviceAbsStart(2) + TRANSITION_START - 2, file: 'flip-air.wav', volume: 0.6},
 
   // Scroll transitions (VIDEODREH->FOTOGRAFIE, CREATOR->BETREUUNG): air
   // starts 3 frames ahead of the visible scroll, per the brief's
   // "air begins 2-4 frames before movement" spec.
-  {frame: serviceAbsStart(1) + TRANSITION_START - 3, file: 'scroll-air.wav', volume: 0.5},
-  {frame: serviceAbsStart(4) + TRANSITION_START - 3, file: 'scroll-air.wav', volume: 0.5},
+  {frame: serviceAbsStart(1) + TRANSITION_START - 3, file: 'scroll-air.wav', volume: 0.6},
+  {frame: serviceAbsStart(4) + TRANSITION_START - 3, file: 'scroll-air.wav', volume: 0.6},
 
   // Icon lock — one per service, exactly at its completion-overshoot frame
   // (CardFace's lock pulse). CREATOR (index 4) is included on equal terms,
@@ -197,6 +245,15 @@ const SFX_CUES: SfxCue[] = [
     file: 'icon-lock.wav',
     volume: index === 4 ? 0.4 : 0.38,
   })),
+
+  // Word-wave rhythmic accents — the same icon-lock ping, reused at a much
+  // lower volume as a barely-audible tick: only on the FIRST word of each
+  // sentence and its EMPHASIS word, never one sound per word (that would
+  // read as a chattering counter, not a rhythm). Frames mirror the exact
+  // KineticWords timing below (enterStart + rank*stagger + wordDuration).
+  {frame: T.headlineIn + 13, file: 'icon-lock.wav', volume: 0.14},
+  {frame: T.headlineIn + 5 * 2 + 3 + 13, file: 'icon-lock.wav', volume: 0.2},
+  {frame: T.logoSettled + 16 + 3 * 2 + 3 + 13, file: 'icon-lock.wav', volume: 0.2},
 
   // Metric pulses — one distinct variant per stat, on arrival.
   {frame: T.statsStart + 20, file: 'metric-pulse-1.wav', volume: 0.5},
@@ -382,9 +439,6 @@ export const OffscriptFilm: React.FC = () => {
   const pillLabelExit = mp2(T.pillHold + 2, T.pillToRule);
 
   // --- Headline ------------------------------------------------------------
-  const headlineEnter = mp2(T.headlineIn, T.headlineRevealEnd);
-  const headlineExit = mp2(T.headlineHold, T.headlineOut);
-
   // --- Services --------------------------------------------------------------
   const stage = getServiceStage(frame, fps);
   const isLast = stage.index === T.SERVICE_COUNT - 1;
@@ -433,12 +487,11 @@ export const OffscriptFilm: React.FC = () => {
   const logoScale = interpolate(logoEnter, [0, 1], [0.97, 1]);
   const logoOpacity = logoEnter;
 
-  const subEnter = mp2(T.logoSettled - 4, T.logoSettled + 20);
-  const tagEnter = mp2(T.logoSettled + 16, T.logoSettled + 46);
 
   // A settling breathing-room drift for the very end — barely perceptible.
   const settleT = Math.max(frame - (T.logoSettled + 70), 0) / fps;
   const settleDrift = Math.sin(settleT * 0.35) * 1.4;
+  const cameraScale = cameraScaleAt(frame);
 
   return (
     <AbsoluteFill style={{backgroundColor: FILM_COLORS.background}}>
@@ -448,13 +501,19 @@ export const OffscriptFilm: React.FC = () => {
         </Sequence>
       ))}
 
+      {/* Virtual camera: the whole visual tree, scaled by a subtle
+          transition-motivated pulse. Positioned + sized to the full frame
+          BEFORE the transform, so every descendant's percentage-based
+          positioning still resolves against this same 1080x1920 box. */}
+      <div style={{position: 'absolute', inset: 0, transform: `scale(${cameraScale})`, transformOrigin: '50% 50%'}}>
+
       {/* Persistent hero shape */}
       <div
         style={{
           position: 'absolute',
           left: '50%',
           top: '50%',
-          transform: `translate(-50%, -50%) translateY(${hero.y + settleDrift}px)`,
+          transform: `translate(-50%, -50%) translateY(${hero.y + settleDrift}px) scale(${microDrift(frame, fps, 0.013, 0.55, 0)})`,
         }}
       >
         <MorphingPill
@@ -483,6 +542,7 @@ export const OffscriptFilm: React.FC = () => {
             enterPrev={pillLabelEnter.prev}
             exit={pillLabelExit.value}
             exitPrev={pillLabelExit.prev}
+            maxBlur={9}
             style={{position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)'}}
           />
 
@@ -504,8 +564,8 @@ export const OffscriptFilm: React.FC = () => {
                     alignItems: 'center',
                     justifyContent: 'center',
                     opacity: isLast ? interpolate(finalPush, [0, 1], [1, 0]) : 1,
-                    filter: isLast ? `blur(${interpolate(finalPush, [0, 1], [0, 10])}px)` : undefined,
-                    transform: isLast ? `scale(${interpolate(finalPush, [0, 1], [1, 1.12])})` : undefined,
+                    filter: isLast ? `blur(${interpolate(finalPush, [0, 1], [0, 18])}px)` : undefined,
+                    transform: isLast ? `scale(${interpolate(finalPush, [0, 1], [1, 1.2])})` : undefined,
                   }}
                 >
                   <CardFace buildProgress={currentBuild}>{currentIcon}</CardFace>
@@ -573,8 +633,8 @@ export const OffscriptFilm: React.FC = () => {
                       alignItems: 'center',
                       justifyContent: 'center',
                       opacity: interpolate(stage.transitionProgress, [0, 1], [1, 0]),
-                      filter: `blur(${interpolate(stage.transitionProgress, [0, 1], [0, 5])}px)`,
-                      transform: `scale(${interpolate(stage.transitionProgress, [0, 1], [1, 0.95])})`,
+                      filter: `blur(${interpolate(stage.transitionProgress, [0, 1], [0, 11])}px)`,
+                      transform: `scale(${interpolate(stage.transitionProgress, [0, 1], [1, 0.92])})`,
                     }}
                   >
                     <CardFace buildProgress={currentBuild}>{currentIcon}</CardFace>
@@ -587,8 +647,8 @@ export const OffscriptFilm: React.FC = () => {
                       alignItems: 'center',
                       justifyContent: 'center',
                       opacity: interpolate(stage.transitionProgress, [0, 1], [0, 1]),
-                      filter: `blur(${interpolate(stage.transitionProgress, [0, 1], [5, 0])}px)`,
-                      transform: `scale(${interpolate(stage.transitionProgress, [0, 1], [1.05, 1])})`,
+                      filter: `blur(${interpolate(stage.transitionProgress, [0, 1], [11, 0])}px)`,
+                      transform: `scale(${interpolate(stage.transitionProgress, [0, 1], [1.08, 1])})`,
                     }}
                   >
                     <CardFace buildProgress={nextBuild}>{nextIcon}</CardFace>
@@ -609,19 +669,24 @@ export const OffscriptFilm: React.FC = () => {
           transform: 'translate(-50%, -50%) translateY(40px)',
         }}
       >
-        <MaskText
+        <KineticWords
           lines={['DAS BESTE PASSIERT,', 'SOBALD DAS SCRIPT WEG IST.']}
+          frame={frame}
+          fps={fps}
+          enterStart={T.headlineIn}
+          wordStagger={2}
+          wordDuration={13}
+          exitStart={T.headlineHold}
+          exitStagger={2}
+          exitDuration={9}
+          direction="left-right"
+          emphasisIndex={5}
           rowHeight={80}
           width={1000}
           fontSize={56}
           fontWeight={800}
-          letterSpacingFrom={5}
-          letterSpacingTo={-1.5}
-          enter={headlineEnter.value}
-          enterPrev={headlineEnter.prev}
-          exit={headlineExit.value}
-          exitPrev={headlineExit.prev}
-          maxBlur={13}
+          letterSpacing={-1.5}
+          maxBlur={18}
         />
       </div>
 
@@ -655,10 +720,12 @@ export const OffscriptFilm: React.FC = () => {
               // itself a second time (the "double pop" bug). Anchoring both
               // sides to the same start frame keeps the value continuous
               // across the remount instead.
-              enter={morphProgress(frame, iconBuildStart(stage.index), iconBuildStart(stage.index) + 10, fps, OFFSCRIPT_SMOOTH)}
-              enterPrev={morphProgress(frame - 1, iconBuildStart(stage.index), iconBuildStart(stage.index) + 10, fps, OFFSCRIPT_SMOOTH)}
+              enter={morphProgress(frame, iconBuildStart(stage.index), iconBuildStart(stage.index) + 8, fps, OFFSCRIPT_SMOOTH)}
+              enterPrev={morphProgress(frame - 1, iconBuildStart(stage.index), iconBuildStart(stage.index) + 8, fps, OFFSCRIPT_SMOOTH)}
               exit={isLast ? finalPush : 0}
               exitPrev={isLast ? finalPushPrev : 0}
+              maxBlur={11}
+              overshootAmount={0.05}
             />
           )}
 
@@ -675,7 +742,7 @@ export const OffscriptFilm: React.FC = () => {
                   // them apart isn't enough — at typical scroll distances
                   // they still land close enough in Y to double-expose.)
                   opacity: interpolate(stage.transitionProgress, [0, 0.42, 0.5], [1, 0, 0], {extrapolateRight: 'clamp'}),
-                  filter: `blur(${interpolate(stage.transitionProgress, [0, 0.5], [0, kind === 'flip' ? 8 : 10], {extrapolateRight: 'clamp'})}px)`,
+                  filter: `blur(${interpolate(stage.transitionProgress, [0, 0.5], [0, kind === 'flip' ? 13 : 16], {extrapolateRight: 'clamp'})}px)`,
                   transform: kind === 'scroll' ? scrollTransform(scrollOut(stage.transitionProgress, 1)) : `translateY(${interpolate(stage.transitionProgress, [0, 1], [0, -10])}px)`,
                 }}
               >
@@ -698,7 +765,7 @@ export const OffscriptFilm: React.FC = () => {
                     position: 'absolute',
                     inset: 0,
                     opacity: interpolate(stage.transitionProgress, [0.5, 0.58, 1], [0, 0, 1], {extrapolateLeft: 'clamp'}),
-                    filter: `blur(${interpolate(stage.transitionProgress, [0.5, 1], [kind === 'flip' ? 8 : 10, 0], {extrapolateLeft: 'clamp'})}px)`,
+                    filter: `blur(${interpolate(stage.transitionProgress, [0.5, 1], [kind === 'flip' ? 13 : 16, 0], {extrapolateLeft: 'clamp'})}px)`,
                     transform: kind === 'scroll' ? scrollTransform(scrollIn(stage.transitionProgress, 1)) : `translateY(${interpolate(stage.transitionProgress, [0, 1], [10, 0])}px)`,
                   }}
                 >
@@ -727,7 +794,7 @@ export const OffscriptFilm: React.FC = () => {
           position: 'absolute',
           left: '50%',
           top: '50%',
-          transform: 'translate(-50%, -50%)',
+          transform: `translate(-50%, -50%) scale(${microDrift(frame, fps, 0.011, 0.4, Math.PI / 2)})`,
           opacity: statsBlockOpacity,
         }}
       >
@@ -754,7 +821,7 @@ export const OffscriptFilm: React.FC = () => {
           position: 'absolute',
           left: '50%',
           top: '50%',
-          transform: `translate(-50%, -50%) translateY(${settleDrift}px)`,
+          transform: `translate(-50%, -50%) translateY(${settleDrift}px) scale(${microDrift(frame, fps, 0.009, 0.35, Math.PI)})`,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -770,36 +837,43 @@ export const OffscriptFilm: React.FC = () => {
         </div>
 
         <div style={{marginTop: 30}}>
-          <MaskText
-            lines={[
-              {text: 'CONTENT & SOCIAL MEDIA'},
-              {text: 'ZÜRICH', color: FILM_COLORS.secondary},
-            ]}
+          <KineticWords
+            lines={['CONTENT & SOCIAL MEDIA', 'ZÜRICH']}
+            frame={frame}
+            fps={fps}
+            enterStart={T.logoSettled - 4}
+            wordStagger={2}
+            wordDuration={12}
+            direction="left-right"
             rowHeight={30}
             width={420}
             fontSize={17}
             fontWeight={600}
             color={FILM_COLORS.secondary}
-            letterSpacingFrom={4}
-            letterSpacingTo={3}
-            enter={subEnter.value}
-            enterPrev={subEnter.prev}
+            letterSpacing={3}
+            maxBlur={10}
           />
         </div>
 
         <div style={{marginTop: 44}}>
-          <MaskText
+          <KineticWords
             lines={['DAS BESTE PASSIERT,', 'SOBALD DAS SCRIPT WEG IST.']}
+            frame={frame}
+            fps={fps}
+            enterStart={T.logoSettled + 16}
+            wordStagger={2}
+            wordDuration={13}
+            direction="center-out"
+            emphasisIndex={5}
             rowHeight={44}
             width={620}
             fontSize={30}
             fontWeight={700}
-            letterSpacingFrom={3}
-            letterSpacingTo={-0.5}
-            enter={tagEnter.value}
-            enterPrev={tagEnter.prev}
+            letterSpacing={-0.5}
+            maxBlur={12}
           />
         </div>
+      </div>
       </div>
     </AbsoluteFill>
   );

@@ -36,21 +36,19 @@ const pillGrow = 38; // was 55 — tighter build
 const pillHold = 66; // ~28-frame readable hold on "OFFSCRIPT"
 const pillToRule = 80; // 14-frame transition
 
-const headlineIn = 96; // brief (16f) rule-alone breath before headline
-const headlineRevealEnd = 128; // 32-frame mask reveal
-const headlineHold = 188; // ~60-frame readable hold (a full sentence)
-const headlineOut = 202; // 14-frame exit
-
+const headlineIn = 88; // brief (8f) rule-alone breath before the word-wave starts
+const headlineRevealEnd = 115; // fast word-wave: fully assembled ~27f after headlineIn
+const headlineHold = 188; // ~73-frame readable hold (a full sentence) — animate fast, hold long
 const servicesCardIn = 216; // 14-frame card-forming transition
 const serviceStart = 224; // 8-frame settle before content starts
 
 // Each service: ~10f enter, icon fully built by ~24f in, held complete
-// until ~14f before the end, then a flip/scroll/morph transition into the
+// until ~11f before the end, then a flip/scroll/morph transition into the
 // next. Total per service comfortably clears the "20-30 frames fully
 // built" and "30-40 frames readable" requirements.
 const serviceStep = 74;
 const SERVICE_COUNT = 6;
-const serviceTransitionFrames = 14; // shared: outgoing's exit IS incoming's entrance
+const serviceTransitionFrames = 11; // shorter, snappier transitions; the frames saved go straight into hold time
 const servicesEnd = serviceStart + SERVICE_COUNT * serviceStep + 10;
 
 const statsCardOut = servicesEnd + 14; // camera-push exit, see OffscriptFilm
@@ -76,7 +74,6 @@ export const TIMELINE = {
   headlineIn,
   headlineRevealEnd,
   headlineHold,
-  headlineOut,
   servicesCardIn,
   serviceStart,
   serviceStep,

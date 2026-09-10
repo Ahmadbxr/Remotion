@@ -18,10 +18,9 @@ type Props = {
 
 // Icons get a much lighter motion blur than text, and only while the whole
 // face is spatially moving (rotating/lifting) — never while its own paths
-// are being drawn. ~10deg/frame is a fast flip; that maps to the brief's
-// 3-6px ceiling for icon blur.
-const MAX_ROT_VELOCITY = 10;
-const MAX_ICON_BLUR = 5;
+// are being drawn.
+const MAX_ROT_VELOCITY = 9;
+const MAX_ICON_BLUR = 7;
 
 /**
  * A restrained 3D card flip — not a 180° PowerPoint spin. The outgoing face
@@ -52,14 +51,14 @@ export const FlipTransition: React.FC<Props> = ({
 
   const outRot = interpolate(p, [0, 1], [0, -85]);
   const outRotPrev = interpolate(pPrev, [0, 1], [0, -85]);
-  const outTranslateY = interpolate(p, [0, 1], [0, -10]);
-  const outScale = interpolate(p, [0, 1], [1, 0.94]);
+  const outTranslateY = interpolate(p, [0, 1], [0, -14]);
+  const outScale = interpolate(p, [0, 1], [1, 0.92]);
   const outBlur = getMotionBlur(outRot - outRotPrev, MAX_ROT_VELOCITY, MAX_ICON_BLUR);
 
-  const inRot = withOvershoot(p, 85, 0, 0.05);
-  const inRotPrev = withOvershoot(pPrev, 85, 0, 0.05);
-  const inTranslateY = withOvershoot(p, 18, 0, 0.18);
-  const inScale = interpolate(p, [0, 1], [0.9, 1]);
+  const inRot = withOvershoot(p, 85, 0, 0.07);
+  const inRotPrev = withOvershoot(pPrev, 85, 0, 0.07);
+  const inTranslateY = withOvershoot(p, 24, 0, 0.22);
+  const inScale = interpolate(p, [0, 1], [0.88, 1]);
   const inBlur = getMotionBlur(inRot - inRotPrev, MAX_ROT_VELOCITY, MAX_ICON_BLUR);
 
   const outOpacity = interpolate(p, [0, 0.5, 0.62], [1, 1, 0], {extrapolateRight: 'clamp'});

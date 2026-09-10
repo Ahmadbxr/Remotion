@@ -48,12 +48,38 @@ identical width/height frame-to-frame, so blur is structurally guaranteed
 to be exactly 0 there, not just visually tuned to look that way.
 
 **Rhythm**: fast transition, slow hold, throughout. Structural transitions
-run ~10-16 frames; readable content then holds 30-60+ frames before the
+run ~10-13 frames; readable content then holds 30-73+ frames before the
 next one starts. The services section is treated as its own hero section —
 each of the six gets a fixed per-slot rhythm (arrival → icon build,
-concurrent with arrival, not after it → a 30-44 frame complete hold →
-a shared exit/entrance transition into the next) so no icon is ever cut
-away before it's fully built.
+concurrent with arrival, not after it → a complete hold → a shared
+exit/entrance transition into the next) so no icon is ever cut away before
+it's fully built. Nothing ever sits perfectly still, either: a slow
+(~2-second-period), sub-1.5%-amplitude sine drift on the hero shape, the
+stats block, and the logo group keeps every hold visibly alive without
+ever registering as motion (it's too slow to trigger any of the
+velocity-based blur described below), and a subtle whole-frame camera
+scale-pulse (`cameraScaleAt`, ~2.2% at its peak) breathes at each major
+scene boundary — motivated by, and only by, an actual transition, never a
+random ambient zoom.
+
+**Typography's primary motion language is word-by-word, not full-line.**
+`<KineticWords>` splits a sentence into words and assembles it as a fast
+traveling wave — 2-frame stagger between words, each word's own ~13-frame
+settle, so an 8-word sentence is fully legible within about half a second
+while still visibly rippling into place. Every word gets one controlled
+overshoot (position + scale together) and the same velocity-measured blur
+as everything else in the project — each word's y-position is compared
+frame-to-frame, so a fast-moving word blurs and a settled one is
+pin-sharp, automatically. Exits reverse the wave direction and run faster
+than entrances. One word per sentence can be marked as `emphasisIndex` for
+a slightly delayed, stronger settle — used on "SCRIPT" in both the
+headline and the closing tagline, the punchline word in each. Direction
+(`left-right`, `center-out`, etc.) reorders which word animates first
+without ever moving a word out of its natural reading position
+horizontally. Used for the headline, the closing tagline, and the
+subtext line; single-word labels (the pill, each service name) stay on
+`<MaskText>`, just tuned for more energy (larger overshoot, higher blur
+ceiling) than before.
 
 **Motion vocabulary**: five service-to-service boundaries rotate through
 `flip` (`<FlipTransition>`, a restrained ~85° 3D card flip, not a 180° spin),
@@ -68,6 +94,10 @@ instead of pairing with a "next" service.
   pair driving the services section's per-slot rhythm and transition
   pairing, plus headline / service / stat / logo layers positioned
   relative to the hero.
+- `src/film/components/KineticWords.tsx` — the word-by-word wave described
+  above: per-word rank-based stagger (with `left-right` / `right-left` /
+  `center-out` / `outside-center` / `bottom-top` ordering), one overshoot
+  and one velocity-measured blur per word, optional `emphasisIndex`.
 - `src/film/components/MaskText.tsx` — fixed-container, vertical mask-reveal
   text (translateY within an `overflow: hidden` row, tracking tighten,
   gentle settle on exit) — never a fly-in, never a plain fade. Blur is
@@ -215,6 +245,25 @@ full rendered video confirms the fix: only 4 frames in all 1140 register a
 notable frame-to-frame change, and all 4 land exactly on legitimate
 structural transitions (pill→rule, headline exit, the two stat handoffs)
 — none at any service or icon boundary.
+
+**A later "more energy" pass** raised the overall motion density without
+touching brand identity, copy, or structure: word-by-word typography (see
+`KineticWords` above) replaced full-line entrances on every multi-word
+sentence; service-to-service transitions got shorter (`serviceTransitionFrames`
+14→11, so the frames saved go straight into hold/read time, not lost);
+blur ceilings roughly doubled on major structural transitions (the hero
+shape, the camera-push exit, the morph transition) while staying
+unchanged on small per-icon blur; the virtual-camera pulse and the
+idle-drift system described above were both added in this pass. Verified
+via the same rendered-frame method throughout (word-wave assembly,
+CREATOR's centering under the new camera wrapper, a service boundary for
+the double-pop fix, a whole-film low-res filmstrip) plus one added
+quantitative signal: encoded bitrate roughly doubled (137→280 kb/s) at
+the same CRF, i.e. h264 is spending meaningfully more bits because there
+is meaningfully more genuine frame-to-frame change to encode. Actually
+*watching* the render in real time and judging its energy against a
+reference clip is a human judgment call this process can't substitute
+for — the rendered file is the deliverable for that, not this checklist.
 
 ## Usage
 
