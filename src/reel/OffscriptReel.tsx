@@ -14,7 +14,7 @@ import {
   easeInOutCubic,
 } from './motion/easings';
 import {smoothKeys} from './motion/curves';
-import {Impact, impactOffset, impactTransform, transformOf} from './motion/physics';
+import {Impact, impactOffset, impactTransform} from './motion/physics';
 import {motionBlur, velocityStretch} from './motion/velocity';
 import {CameraRig} from './components/CameraRig';
 import {MorphRule} from './components/MorphRule';
@@ -82,17 +82,13 @@ export const OffscriptReel: React.FC = () => {
   const b1MarkeStart = 2;
   const b1IstNichtStart = 18;
   const b1ImpactStart = 32;
-  // 9, not 14. The red field lights at f46, and at 14 the word's own
-  // entrance was not finished until f46 either — so the takeover began
-  // while the title was still arriving, and every reaction below was still
-  // ringing on top of it. Landing at f37.6 buys the settle, the stable
-  // moment and the anticipation the handoff needs, without moving the word's
-  // entrance or the red one frame.
+  // Enters at f32, fully landed at f41. The red field lights at f46, so the
+  // whole frame — LANGWEILIG. included — is perfectly static for five
+  // frames in between. Nothing is still settling when the takeover starts.
   const b1ImpactDur = 9;
-  const b1ImpactHit = b1ImpactStart + b1ImpactDur * 0.62;
-  // Everything the impact sets in motion is over by here — hard deadline,
-  // three frames before the red field appears.
-  const b1QuietAt = 44.6;
+  // The overshoot apex: the moment the word reads as having hit. Used only
+  // to place the sound.
+  const b1ImpactHit = b1ImpactStart + b1ImpactDur * 0.68;
 
   // The red field bursts out of the word and DECELERATES as it fills the
   // frame, arriving with almost no velocity at f65. The recede then starts
@@ -133,43 +129,20 @@ export const OffscriptReel: React.FC = () => {
   const b1BoxBlur = motionBlur(b1BoxY - b1BoxYPrev, 150, 50) / Math.max(b1BoxSY, 1);
   const b1BoxOn = b1BoxIn > 0.002 && b1RecedeU < 0.999;
 
-  // ---- the shockwave, as a HIERARCHY rather than one shared number ----
-  // Everything shaking by the same amount is what makes a frame look cheap.
-  // LANGWEILIG. is the object that lands, so it carries the whole reaction;
-  // the type around it takes a fraction, and later, by distance from the
-  // hit; the camera (below) takes least of all. Mass matters too — the
-  // 208px display words barely move, the 42px kicker moves most.
-  // ONE lobe out, ONE gentle counter, done. At cycles 3 these rang three
-  // times — and at 30fps a reaction that changes direction every second
-  // frame is not a recoil, it is vibration. Every reaction below is now
-  // sized to land on exactly 0 at b1QuietAt.
-  const lwRecoil = impactOffset(frame, b1ImpactHit, b1QuietAt - b1ImpactHit, -8, 2); // PRIMARY (Y support)
-  // The primary impact now lives on Z: a short anticipation BACKWARD, a
-  // fast push toward the viewer, one small counter, then a settle onto
-  // ACTIVE. Depth is what makes the hit land, so the frame barely has to
-  // move at all — which is the whole reason the camera amplitudes below
-  // could come down.
-  // Settles at f43 and then holds absolutely still. It used to creep from
-  // 1.067 to 1.053 all the way to f54 — under half a percent, but it meant
-  // the title was never actually at rest when the takeover started.
+  // ---- NO shockwave, and that is the fix ----
   //
-  // From f46 it eases BACKWARD once, in one direction, and that motion runs
-  // straight into the red expansion: anticipation handing off to
-  // acceleration, rather than a decay overlapping a transition.
-  const lwZ =
-    smoothKeys(
-      easeProgress(frame, b1ImpactStart, 43, easeCamera),
-      [0, 0.16, 0.6, 0.82, 1],
-      [-90, -145, 205, 132, PLANE.active],
-    ) - interpolate(easeProgress(frame, 46, 51, easeInOutCubic), [0, 1], [0, 30]);
-  // Secondary reactions: a single smooth excursion each, no counter-swing at
-  // all, so there is not one sign change anywhere in the frame.
-  const istNichtRecoil = impactOffset(frame, b1ImpactHit + 1, b1QuietAt - b1ImpactHit - 1, -7, 1); // nearest + lightest
-  const markeRecoil = impactOffset(frame, b1ImpactHit + 1.6, b1QuietAt - b1ImpactHit - 1.6, -4.5, 1);
-  const deineRecoil = impactOffset(frame, b1ImpactHit + 2.4, b1QuietAt - b1ImpactHit - 2.4, -3.5, 1); // furthest + heaviest
-  // Anticipation: a single 3% compression before the hit, not an oscillation.
-  const anticAmt = impactOffset(frame, b1ImpactHit - 7, 7, 0.03, 1);
-
+  // LANGWEILIG. used to be moved by FIVE systems at once: the camera rig,
+  // a translateY oscillator on its wrapper, a Z curve with its own
+  // overshoot and correction, KineticWord's Y overshoot (46 -> -2.3 ->
+  // +0.575 -> 0), and a rotation driven by that Y velocity — so the
+  // rotation inherited and amplified every wiggle the other four produced.
+  // Three of them moved Y and two moved rotation. No amount of retuning
+  // fixes that; the stack itself was the jitter.
+  //
+  // Now the word owns its motion entirely (see ImpactWord) and everything
+  // around it holds absolutely still through the impact. The force reads
+  // through scale velocity, motion blur and timing — which is what makes
+  // it feel expensive rather than aggressive.
   // =========================================================================
   // BEAT 2 — THE PROBLEM. One headline, one secondary metric attached to it
   // by a red tick, two tertiary signals that physically interact.
@@ -338,10 +311,9 @@ export const OffscriptReel: React.FC = () => {
   //   NICHT DURCH.  lands        -> DOWN, the closing weight
   // =========================================================================
   const cameraImpacts: Impact[] = [
-    // Single lobe, smaller, and finished a clear two frames before the red
-    // field appears. The Z push is what makes this impact land; the camera
-    // only has to confirm it, and during a takeover it should barely exist.
-    {start: b1ImpactHit, duration: b1QuietAt - b1ImpactHit - 2, x: -1.2, y: 2.2, rotate: 0.05, cycles: 1},
+    // No camera impact on LANGWEILIG. The word's own push is the event, and
+    // a camera that also moves is a second source of motion on typography
+    // that is already the largest thing in the frame.
     {start: b3HitStart + 2, duration: 8, x: -2.5, y: 1, rotate: 0.05},
     {start: b5MetricStart + b5RollDur, duration: 9, scale: 0.006, y: 2},
     {start: b6Line2Start + 11, duration: 8, x: 1.5, y: 4, rotate: 0.1},
@@ -401,54 +373,22 @@ export const OffscriptReel: React.FC = () => {
       )}
 
       <div style={{opacity: 1 - b1Consumed}}>
-        <HookWord frame={frame} text="DEINE" start={b1DeineStart} dur={15} fromY={280} fromZ={PLANE.secondary} fontSize={HOOK_SIZE} left={CONTENT.left} top={286} extraY={deineRecoil} extraScale={1 - anticAmt} />
-        <HookWord frame={frame} text="MARKE" start={b1MarkeStart} dur={16} fromY={90} fromX={150} fromZ={PLANE.background} fontSize={HOOK_SIZE} left={CONTENT.left + 200} top={470} extraY={markeRecoil} extraScale={1 - anticAmt} />
-        <div style={{position: 'absolute', left: CONTENT.left + 2, top: 652, transform: `translateY(${istNichtRecoil}px)`}}>
+        <HookWord frame={frame} text="DEINE" start={b1DeineStart} dur={15} fromY={280} fromZ={PLANE.secondary} fontSize={HOOK_SIZE} left={CONTENT.left} top={286} />
+        <HookWord frame={frame} text="MARKE" start={b1MarkeStart} dur={16} fromY={90} fromX={150} fromZ={PLANE.background} fontSize={HOOK_SIZE} left={CONTENT.left + 200} top={470} />
+        {/* Stationary through the impact. A 2-4px secondary reaction would
+            have been allowed, but this is the largest type in the frame at
+            the exact moment the brief says must be clean — so it holds. */}
+        <div style={{position: 'absolute', left: CONTENT.left + 2, top: 652}}>
           <KineticWord text="IST NICHT" frame={frame} fps={fps} enterStart={b1IstNichtStart} enterDur={11} fontSize={46} fontWeight={700} color={BRAND.muted} fromY={26} transformOrigin="0% 100%" />
         </div>
       </div>
 
       {/* LANGWEILIG. — red on the page, white once its own field is behind
           it, then faded away while the field holds full-frame. */}
-      <div
-        style={{
-          position: 'absolute',
-          left: CONTENT.left - 6,
-          top: 700,
-          opacity: 1 - b1LwFade,
-          transform: `translateY(${lwRecoil}px) ${depth(lwZ)}`,
-          transformOrigin: '0% 50%',
-        }}
-      >
-        <KineticWord
-          text="LANGWEILIG."
-          frame={frame}
-          fps={fps}
-          enterStart={b1ImpactStart}
-          enterDur={b1ImpactDur}
-          fontSize={LW_SIZE}
-          color={BRAND.red}
-          impact
-          tilt
-          scaleFrom={1}
-          transformOrigin="0% 50%"
-          maxBlur={32}
-        />
+      <div style={{position: 'absolute', left: CONTENT.left - 6, top: 700, opacity: 1 - b1LwFade}}>
+        <ImpactWord frame={frame} text="LANGWEILIG." start={b1ImpactStart} dur={b1ImpactDur} fontSize={LW_SIZE} color={BRAND.red} />
         <div style={{position: 'absolute', left: 0, top: 0, opacity: b1BoxIn}}>
-          <KineticWord
-            text="LANGWEILIG."
-            frame={frame}
-            fps={fps}
-            enterStart={b1ImpactStart}
-            enterDur={b1ImpactDur}
-            fontSize={LW_SIZE}
-            color="#FFFFFF"
-            impact
-            tilt
-            scaleFrom={1}
-            transformOrigin="0% 50%"
-            maxBlur={32}
-          />
+          <ImpactWord frame={frame} text="LANGWEILIG." start={b1ImpactStart} dur={b1ImpactDur} fontSize={LW_SIZE} color="#FFFFFF" />
         </div>
       </div>
 
@@ -873,12 +813,95 @@ const HookWord: React.FC<{
         color: BRAND.ink,
         whiteSpace: 'nowrap',
         filter: blur ? `blur(${blur}px)` : undefined,
-        transform: `translate(${x}px, ${y + extraY}px) scale(${extraScale}, ${extraScale * stretch}) ${depth(z)}`,
+        // Once it has landed the transform is removed rather than left as a
+        // 3D identity. A settled `perspective(...) translateZ(0)` still puts
+        // the glyphs on a composited layer, where their edges can shimmer
+        // against text that is not — and these two words sit right beside
+        // LANGWEILIG. during exactly the frames that have to be clean.
+        transform:
+          p >= 1 && extraY === 0 && extraScale === 1
+            ? undefined
+            : `translate(${x}px, ${y + extraY}px) scale(${extraScale}, ${extraScale * stretch}) ${depth(z)}`,
         transformOrigin: '0% 50%',
       }}
     >
       {text}
     </div>
+  );
+};
+
+/**
+ * LANGWEILIG. — the word the hook lands on, and the ONLY thing that moves it.
+ *
+ * WHY THIS IS NOT A KineticWord. That component gives a word an X, a Y, a
+ * rotation and a scale, and this word was also inheriting a translateY
+ * oscillator, a Z curve and the camera rig on top of it. Three systems were
+ * moving Y and two were moving rotation, and because the rotation was
+ * derived from Y velocity it amplified whatever the other two did. At 30fps
+ * that is not an impact, it is vibration — and no amount of retuning the
+ * individual amplitudes fixes a stack like that. It has to be one source.
+ *
+ * SO THE IMPACT IS SCALE, AND ONLY SCALE:
+ *
+ *   0.94  ->  1.025  ->  1.0
+ *
+ * X is exactly 0. Y is exactly 0. Rotation is exactly 0. There is no
+ * spring: `smoothKeys` pins the slope to zero at the apex and at the final
+ * pose, so the curve is one push, ONE overshoot and a decelerating settle,
+ * never the pop-bounce-correct-bounce an underdamped spring produces.
+ *
+ * AND NO 3D. The depth system would express this as translateZ under a
+ * perspective, which is more correct in principle and worse in practice
+ * here: a large glyph under a continuously changing 3D transform is
+ * rasterised on a composited layer and its edges shimmer independently of
+ * whether its position is stable. Plain scale keeps the glyphs on the
+ * normal text path, and once the word has landed the transform is dropped
+ * entirely — it becomes ordinary static 2D text, with nothing left for the
+ * rasteriser to reinterpret frame to frame.
+ */
+const ImpactWord: React.FC<{
+  frame: number;
+  text: string;
+  start: number;
+  dur: number;
+  fontSize: number;
+  color: string;
+}> = ({frame, text, start, dur, fontSize, color}) => {
+  // One overshoot. The apex sits at 0.68 of the window so the settle has
+  // real frames to decelerate through instead of drifting for the rest of
+  // the entrance.
+  const scaleAt = (f: number) =>
+    smoothKeys(easeProgress(f, start, start + dur, easeCamera), [0, 0.68, 1], [0.94, 1.025, 1]);
+
+  const settled = frame >= start + dur;
+  const scale = settled ? 1 : scaleAt(frame);
+  // Blur comes off the word's own growth rate, so it peaks with the push
+  // and is structurally 0 the moment the scale stops changing.
+  const blur = settled ? 0 : motionBlur((scale - scaleAt(frame - 1)) * fontSize, fontSize * 0.06, 26);
+  const opacity = easeProgress(frame, start, start + 4, easeOutCubic);
+
+  return (
+    <span
+      style={{
+        display: 'inline-block',
+        fontFamily: FONT,
+        fontWeight: 800,
+        fontSize,
+        color,
+        opacity,
+        whiteSpace: 'nowrap',
+        filter: blur > 0.05 ? `blur(${blur}px)` : undefined,
+        // Nothing at all once it has landed — not `scale(1)`, not a 3D
+        // identity, no transform property.
+        transform: settled ? undefined : `scale(${scale})`,
+        // Anchored where the word actually sits, and vertically centred so
+        // the scale coupling splits across both edges instead of throwing
+        // the whole word off one of them.
+        transformOrigin: '0% 50%',
+      }}
+    >
+      {text}
+    </span>
   );
 };
 
