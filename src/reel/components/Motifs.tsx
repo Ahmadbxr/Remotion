@@ -52,7 +52,10 @@ export const GraphicPlayhead: React.FC<{trackWidth: number; progress: number; st
       height: 22,
       borderRadius: 2,
       background: BRAND.red,
-      left: trackWidth * progress,
+      left: 0,
+      // Transform, not `left` — a layout property animated frame by frame
+      // gets pixel-snapped and the playhead sweeps in visible steps.
+      transform: `translateX(${trackWidth * progress}px)`,
       ...style,
     }}
   />

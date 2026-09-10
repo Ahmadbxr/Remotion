@@ -1,7 +1,7 @@
 import React from 'react';
-import {interpolate} from 'remotion';
 import {BRAND, FONT} from '../theme';
-import {easeProgress, easeOutExpo, easeInOutCubic} from '../motion/easings';
+import {easeProgress, easeInOutCubic} from '../motion/easings';
+import {smoothKeys} from '../motion/curves';
 
 type Props = {
   frame: number;
@@ -12,19 +12,18 @@ type Props = {
 /** "LET'S CREATE →" — ONE deterministic cycle: retract 4px, accelerate
  *  12px right, settle to a small forward rest offset. Never repeats. */
 export const CTAArrow: React.FC<Props> = ({frame, start, style}) => {
-  const local = frame - start;
-  // Exactly one cycle, three explicit segments: anticipate back 4px,
+  // ONE continuous cycle through four poses: retract 4px (anticipation),
   // accelerate 12px right, settle to a small forward rest. Never loops.
-  const retract = easeProgress(local, 0, 4, easeInOutCubic);
-  const launch = easeProgress(local, 4, 12, easeOutExpo);
-  const settle = easeProgress(local, 12, 20, easeInOutCubic);
-
-  const x =
-    local < 4
-      ? interpolate(retract, [0, 1], [0, -4])
-      : local < 12
-        ? interpolate(launch, [0, 1], [-4, 12])
-        : interpolate(settle, [0, 1], [12, 2]);
+  //
+  // These used to be three separate eased segments switched on `local`,
+  // and the switches were velocity cliffs — the arrow reached -4px moving
+  // at full speed and instantly reversed, then hit +12px and instantly
+  // reversed again. One smooth-keyed trajectory turns each of those
+  // corners into a real deceleration and turn-around, which is the whole
+  // difference between a nudge that reads as animated and one that reads
+  // as scripted.
+  const u = easeProgress(frame, start, start + 20, easeInOutCubic);
+  const x = smoothKeys(u, [0, 0.2, 0.6, 1], [0, -4, 12, 2]);
 
   return (
     <span style={{display: 'inline-flex', alignItems: 'center', gap: 10, ...style}}>

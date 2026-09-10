@@ -64,7 +64,7 @@ export const SocialMetric: React.FC<Props> = ({
   if (opacity <= 0.002) return null;
 
   const swipeX = sp * swipeDirection * 700 * (0.6 + depth * 0.4);
-  const rot = withOvershoot(enterP, rotate * 2.5, rotate, 0.2) + sp * swipeDirection * 16;
+  const rot = withOvershoot(enterP, rotate * 2.5, rotate, 0.08) + sp * swipeDirection * 16;
 
   const childP = interpolate(frame, [enterStart + 5, enterStart + 5 + 8], [0, 1], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
 

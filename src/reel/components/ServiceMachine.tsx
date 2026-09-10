@@ -1,7 +1,7 @@
 import React from 'react';
 import {interpolate} from 'remotion';
 import {BRAND, FONT, MONO} from '../theme';
-import {easeProgress, easeOutExpo, easeInOutCubic} from '../motion/easings';
+import {easeProgress, easeOutExpo, easeOutQuint, easeInOutCubic} from '../motion/easings';
 import {motionBlur, velocityStretch} from '../motion/velocity';
 import {AnimatedIcon, ServiceIconKind} from './Icons';
 
@@ -90,24 +90,37 @@ export const ServiceMachine: React.FC<Props> = ({
   });
   const railH = viewportH;
   const markerH = 46;
-  const railGrow = railGrowStart === undefined ? 1 : easeProgress(frame, railGrowStart, railGrowStart + 13, easeOutExpo);
-  const markerIn = railGrowStart === undefined ? 1 : easeProgress(frame, railGrowStart + 8, railGrowStart + 16, easeOutExpo);
+  const railGrow = railGrowStart === undefined ? 1 : easeProgress(frame, railGrowStart, railGrowStart + 14, easeOutQuint);
+  const markerIn = railGrowStart === undefined ? 1 : easeProgress(frame, railGrowStart + 8, railGrowStart + 16, easeOutQuint);
 
   return (
     <div style={{position: 'relative', width, height: viewportH}}>
       {/* Persistent rail — the fixed anchor the moving surface is measured
           against. Fades only once the surface has left. */}
-      <div style={{position: 'absolute', left: 0, top: 0, height: railH * railGrow, width: 3, background: BRAND.border, opacity: railFade}} />
       <div
         style={{
           position: 'absolute',
-          left: -1,
-          top: railTravel * (railH - markerH),
+          left: 0,
+          top: 0,
+          height: railH,
+          width: 3,
+          background: BRAND.border,
+          opacity: railFade,
+          transform: `scaleY(${railGrow})`,
+          transformOrigin: '50% 0%',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
           width: 5,
           height: markerH,
           borderRadius: 3,
           background: BRAND.red,
           opacity: railFade * markerIn,
+          transform: `translateY(${railTravel * (railH - markerH)}px)`,
         }}
       />
 
@@ -145,11 +158,19 @@ export const ServiceMachine: React.FC<Props> = ({
                 style={{
                   position: 'absolute',
                   left: 0,
-                  top: offset,
+                  top: 0,
                   width: '100%',
                   height: rowHeight,
                   opacity: rowOpacity,
-                  transform: `scale(${rowScale})`,
+                  // The scroll offset MUST be a transform. `top` is a layout
+                  // property: the browser resolves it during layout and
+                  // rounds glyph positions to whole pixels, so a surface
+                  // moving 250px per 11 frames advanced in visible integer
+                  // steps rather than gliding. This was the single largest
+                  // source of the "frame-by-frame" feel in the service
+                  // scroll — the timing was already smooth, the rasteriser
+                  // was quantising it.
+                  transform: `translateY(${offset}px) scale(${rowScale})`,
                   transformOrigin: '0% 50%',
                 }}
               >

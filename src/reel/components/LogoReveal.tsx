@@ -1,6 +1,7 @@
 import React from 'react';
 import {interpolate, Img, staticFile} from 'remotion';
 import {springProgress, withOvershoot, SETTLE, TEXT} from '../motion/springs';
+import {smoothKeys} from '../motion/curves';
 import {motionBlur} from '../motion/velocity';
 
 type Props = {
@@ -47,15 +48,15 @@ export const LogoReveal: React.FC<Props> = ({
   const pPrev = springProgress(frame - 1, start, start + duration, fps, SETTLE);
   const scaleAt = (v: number) => withOvershoot(v, fromScale, 1, 0.05);
   const scale = scaleAt(p);
-  const rotate = withOvershoot(p, fromRotate, 0, 0.15);
+  // The logo is a heavy object settling: one small overshoot, no wobble.
+  const rotate = withOvershoot(p, fromRotate, 0, 0.06);
   const velocity = Math.abs(scale - scaleAt(pPrev));
   // An explicit arrival blur that resolves fast (front-loaded, so the logo
   // is already sharp well before it finishes settling) plus the usual
   // velocity blur.
-  const arrivalBlur = interpolate(p, [0, 0.45], [fromBlur, 0], {
-    extrapolateLeft: 'clamp',
-    extrapolateRight: 'clamp',
-  });
+  // Smooth-keyed so the blur eases off instead of hitting 0 at full rate
+  // and stopping — a blur that snaps off is as visible as a position jump.
+  const arrivalBlur = Math.max(0, smoothKeys(p, [0, 0.45, 1], [fromBlur, 0, 0]));
   const blur = motionBlur(velocity, 0.05, 14) + arrivalBlur;
 
   const hasExit = exitStart !== undefined;

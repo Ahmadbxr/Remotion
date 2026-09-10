@@ -75,9 +75,14 @@ export const KineticWord: React.FC<WordProps> = ({
   const xPrev = xAt(enterPPrev, exitPPrev);
   const velocity = Math.abs(y - yPrev) + Math.abs(x - xPrev);
   const blur = motionBlur(velocity, fontSize * 0.5, maxBlur);
-  const rotate = tilt ? velocityTilt(y - yPrev, fontSize * 0.35, 3.5) : 0;
+  // A whisper, not a wobble — 3.5deg on a moving headline is legible AS
+  // rotation, which is exactly what it should never be.
+  const rotate = tilt ? velocityTilt(y - yPrev, fontSize * 0.35, 1.8) : 0;
 
-  const scale = withOvershoot(enterP, scaleFrom, 1, impact ? 0.16 : overshoot * 0.7) * interpolate(exitP, [0, 1], [1, 1.05]);
+  // 0.075, not 0.16. A 16% scale overshoot on a word is rubber — it reads
+  // as the type wobbling rather than as the type landing. One restrained
+  // overshoot plus the profile's own small correction is the whole effect.
+  const scale = withOvershoot(enterP, scaleFrom, 1, impact ? 0.075 : overshoot * 0.7) * interpolate(exitP, [0, 1], [1, 1.05]);
   const opacity = interpolate(enterP, [0, 1], [0, 1]) * interpolate(exitP, [0, 1], [1, 0]);
 
   return (

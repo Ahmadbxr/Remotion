@@ -615,6 +615,140 @@ frames; and there were dead frames at the OFFSCRIPT → SERVICES boundary
 where one beat had left and the next had not yet arrived (the rail now
 draws and the surface rises while the previous text is still leaving).
 
+### Motion smoothness / physics pass
+
+A pass on the QUALITY of the motion rather than the amount of it. Nothing
+was added; the existing choreography was made physically coherent.
+
+**The shake system.** There was never a `Math.random()` in this project, but
+the "shakes" were single half-sine bumps (`sin(t/N * PI) * amp`) which start
+at maximum velocity from a standstill and are one push, not a reaction. They
+are replaced by `motion/physics.ts` — `impactOffset()`, the windowed impulse
+response of a damped oscillator:
+
+    value(u) = amplitude x decay(u) x sin(PI x cycles x u)
+
+Continuous, decaying, directional, deterministic. `u = 0` gives value 0 at
+maximum velocity (which is what an impact *is*), `u = 1` gives EXACTLY 0
+position and EXACTLY 0 velocity — structurally, because `cycles` is a whole
+number so the sine lands on a zero crossing and the decay window reaches
+zero there too. No residual jitter can survive. `amplitude` is the true peak
+displacement (the envelope is normalised against a scan of the first lobe),
+and its sign is the direction of the incoming force. A ~1-frame smoothstep
+attack removes the single-frame teleport at the hit without softening it.
+
+**One camera, four moments.** `components/CameraRig.tsx` wraps the whole
+composition and is the only thing allowed to move the frame, so shake cannot
+compound across parent/child layers. Every amplitude is inside the brief's
+ceiling — X 2-6px, Y 2-8px, rotation 0.05-0.25 deg, 5-10 frames — and each
+reacts on the axis the force acted on: LANGWEILIG. punches up so the frame
+recoils down; WEGSWIPT. is thrown right so the frame drags left; 100K+ comes
+at the viewer so the camera answers with scale; NICHT DURCH. lands and the
+frame takes the closing weight.
+
+**Impact hierarchy.** Reactions are tiered by role AND by mass, and the force
+travels by distance from the hit rather than everything moving at once:
+
+| element | reaction | note |
+|---|---|---|
+| LANGWEILIG. | 13px | primary — the object that lands, 3 lobes |
+| IST NICHT | 7px | nearest and lightest, +1 frame |
+| MARKE | 4.5px | heavy display type, +2 frames |
+| DEINE | 3.5px | furthest and heaviest, +4 frames |
+| camera | 5px | tertiary, and never the event |
+
+**Springs stopped bouncing.** The old `IMPACT` preset had a damping ratio of
+0.43: it oscillated past its target and `springProgress` then *clamped* it at
+1. A clamp is a velocity cliff — the value slammed into a wall, stopped dead,
+then travelled backwards as the spring swung under 1 again. Every engine is
+now critically damped or heavier, so the clamp is a no-op and the engines are
+pure timing drivers. All visible overshoot moved into `withOvershoot`, where
+it is one auditable number, capped at the house default of 6%: the profile is
+`1 -> 1.06 -> 0.985 -> 1`, never rubber like `1.15 / 0.9 / 1.08 / 0.95 / 1`.
+The impact word's scale overshoot came down from 0.16 to 0.075.
+
+**Pose curves are C1.** `motion/curves.ts` — `smoothKeys()`, monotone cubic
+Hermite (Fritsch-Carlson) with the final tangent pinned to 0. `interpolate`
+with multiple stops is piecewise LINEAR, so velocity changes instantly at
+every pose, which at 30fps is exactly the "overshoot -> suddenly target"
+kink. The monotone tangent limiter also matters: a plain Catmull-Rom asked
+for `0 -> 1.06 -> 0.985 -> 1` actually peaks near 1.09, so an authored 6%
+overshoot would arrive on screen as 9%. Verified numerically at 1.0600 /
+0.9850 / 1.0000.
+
+**Velocity continuity, found by measurement.** Per-frame mean pixel delta was
+differentiated across all 600 frames to find jerk (a large single-frame change
+in how much the image is moving) and a second pass looked for rapidly
+alternating motion energy, the signature of shimmer. That surfaced:
+
+- *The red wipe read as a cut.* On `easeInCubic` the revealing edge crawled
+  for eight frames (0.9px, 6px, 17px...) then covered 300, 360 and 427px on
+  the last three, and travelled 2500px when 1990 clears the frame. Retimed to
+  accelerate from rest over five frames and then leave at a steady ~145px per
+  frame — 18 legible frames of wipe instead of 3.
+- *The fill froze mid-flight.* The panel's expansion ended at 4.5 scale-units
+  per frame, sat still for four frames, then started moving again. Both sides
+  of that junction now arrive and leave at zero velocity.
+- *The swipe reversed instantly.* `swipeResistX` was an `easeInCubic` throw
+  stitched to a separate spring-back: at the seam the word went from
+  +67px/frame to -14px/frame in one frame. It is now a single continuous
+  trajectory with no seam because there is no second function.
+- *The metric roll popped its blur.* `easeOutCubic` leaves the gate at maximum
+  velocity, so the column went from still to 85px/frame between two frames and
+  the velocity-derived blur jumped 0 -> full. A slot machine spins *up*; it
+  now accelerates, runs fast through the middle where intermediates should be
+  unreadable, and decelerates into the landing.
+- *The CTA arrow turned two corners at full speed.* Three eased segments
+  switched on a frame counter became one smooth-keyed trajectory.
+
+**Sub-pixel motion.** The service rows animated `top` and SKIP animated
+`left`. Those are LAYOUT properties: the browser resolves them during layout
+and snaps glyphs to whole pixels, so a surface moving 250px per 11 frames
+advanced in visible integer steps. The timing was already smooth — the
+rasteriser was quantising it. All of them are transforms now (also the rail
+marker and the playhead), which composite with sub-pixel precision. There is
+no `Math.round()` on any animated value.
+
+**The 100K+ rectangle.** The roller's window was one slot tall, barely taller
+than the glyphs, with a hard `overflow: hidden` edge. A 30px blur had nowhere
+to fade, so the haze ran into the clip edge and stopped on a horizontal line
+— and the launch that follows scales that box 3.8x and blurs it another 38px,
+smearing those two lines into a grey rectangular field behind the number.
+Fixed at the cause: real headroom (glyphs occupy the middle ~60%), a soft
+mask gradient instead of a cut, a lower blur ceiling, and the settle scale
+moved to an outer element and made exactly 1 before it starts (it used to sit
+at 0.9 from mount, so the whole roll played 10% undersized).
+
+Related: a CSS `filter` is applied in the element's LOCAL space and the
+transform scales the result, so the red panel's nominal 16px blur landed on
+screen as ~300px at `scaleY(19)`. Blur is now divided by its own scale.
+
+**No ambient shimmer.** The 1% `breathe()` sine on the held hero block was
+removed. A continuous sub-pixel scale on display type resamples every glyph
+every frame; the type shimmers faintly for the whole hold, which is precisely
+the texture the brief describes as jittery. A hold is now a hold.
+
+**Safe zones.** `layout.ts` replaces three constants that nothing imported
+with a real system: top 260, bottom 400 (the caption/audio bar is the most
+underestimated one), sides 72, plus a 176px action-rail inset that only bites
+below y=880 — with `rightEdgeAt(y)` and a `SafeZoneGuides` QC overlay. All
+600 frames were checked programmatically against it. Information stays
+inside; only decorative motion crosses (the red flood, the SKIP throw, the
+peeling sheets, the metric explosion). Opening type came down 12% to 208px so
+the headline sets inside the content area without clipping its first letter,
+and the hero line to 116px for the same reason.
+
+**Also caught in QC:** `HookWord` was parked visibly at its entry pose for
+two frames before it moved (an eased progress at p=0 is a valid *visible*
+pose, not "not yet started"); WEGSWIPT.'s ~13px counter-swing exactly ate the
+14px word space and left it touching "NICHT"; the wipe was uncovering
+typography that had already settled, which turns a continuous handoff back
+into two separate shots.
+
+Result: 600 frames, 9 frames exceed the 3.2-sigma jerk threshold and every
+one of them is an intended event — the red flood (a clean
+accelerate/peak/decelerate bell) and the wipe's graded tail.
+
 ## Usage
 
 ```bash

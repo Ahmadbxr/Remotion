@@ -1,9 +1,23 @@
 import React from 'react';
 import {AbsoluteFill, Audio, Sequence, interpolate, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
 import {BRAND, FONT} from './theme';
-import {springProgress, withOvershoot, TEXT, IMPACT, SETTLE} from './motion/springs';
-import {easeProgress, easeOutExpo, easeOutCubic, easeInExpo, easeInCubic, easeInOutCubic} from './motion/easings';
+import {springProgress, TEXT, SETTLE} from './motion/springs';
+import {
+  easeProgress,
+  easeArrive,
+  easeCamera,
+  easeOutExpo,
+  easeOutCubic,
+  easeOutQuint,
+  easeInExpo,
+  easeInCubic,
+  easeInOutCubic,
+} from './motion/easings';
+import {smoothKeys} from './motion/curves';
+import {Impact, impactOffset, impactTransform, transformOf} from './motion/physics';
 import {motionBlur, velocityStretch} from './motion/velocity';
+import {CameraRig} from './components/CameraRig';
+import {CONTENT, CONTENT_W, SafeZoneGuides, widthAt} from './layout';
 import {KineticWord, KineticPhrase} from './components/Kinetic';
 import {SocialMetric} from './components/SocialMetric';
 import {ServiceMachine} from './components/ServiceMachine';
@@ -32,8 +46,16 @@ import {GraphicLine, MetaLabel} from './components/Motifs';
 //                       blur and the logo is swapped in inside the blur.
 // ---------------------------------------------------------------------------
 
-const breathe = (frame: number, amp = 0.01, freq = 0.4, phase = 0) =>
-  1 + Math.sin((frame / 30) * freq * Math.PI * 2 + phase) * amp;
+// The opening display size. Down ~12% from 236: at 236 the headline could
+// not be set inside the content-safe area without clipping its first
+// letter, which is a legibility cost the "oversized" gesture does not
+// justify. The editorial scale survives the trim — 208px is still nearly a
+// fifth of the frame width per character.
+const HOOK_SIZE = 208;
+
+// "NICHT DURCH." at 124px overran the content-safe right edge; 116 sets the
+// full line inside it without touching the story or the composition.
+const HERO_SIZE = 116;
 
 // LANGWEILIG.'s own box — the red field is seeded from exactly these bounds.
 const LW_L = 40;
@@ -57,26 +79,66 @@ export const OffscriptReel: React.FC = () => {
   const b1ImpactDur = 14;
   const b1ImpactHit = b1ImpactStart + b1ImpactDur * 0.62;
 
+  // The red field bursts out of the word and DECELERATES as it fills the
+  // frame, arriving with almost no velocity at f65. The recede then starts
+  // from rest at f66 and accelerates away. Previously the fill ran on
+  // easeInCubic and was still travelling at 4.5 scale-units per frame when
+  // it hit its end stop, sat frozen for four frames, then started moving
+  // again — a velocity cliff in both directions, and the single most
+  // visible "coded, not animated" moment in the Reel.
   const b1BoxIn = easeProgress(frame, 46, 50, easeOutCubic); // the word's own red field lights up
-  const b1BoxSX = interpolate(easeProgress(frame, 47, 56, easeInCubic), [0, 1], [1, 1.5]);
-  const b1BoxSY = interpolate(easeProgress(frame, 50, 62, easeInCubic), [0, 1], [1, 19]);
+  const b1BoxSX = interpolate(easeProgress(frame, 47, 63, easeCamera), [0, 1], [1, 1.5]);
+  const b1BoxSY = interpolate(easeProgress(frame, 49, 65, easeCamera), [0, 1], [1, 19]);
   const b1Consumed = easeProgress(frame, 46, 58, easeInOutCubic); // the rest of the type is swallowed by the red
   const b1LwFade = easeProgress(frame, 58, 66, easeInOutCubic);
-  const b1RecedeP = easeProgress(frame, 66, 80, easeInOutCubic);
-  const b1BoxY = interpolate(b1RecedeP, [0, 1], [0, -2500]);
-  const b1BoxOn = b1BoxIn > 0.002 && b1RecedeP < 0.999;
+  // The lift-off, retimed. On easeInCubic the revealing bottom edge crawled
+  // for eight frames (0.9px, 6px, 17px...) and then covered 300, 360 and
+  // 427px on the last three — so the reveal, which is the whole point of
+  // the shot, happened in three frames and read as a cut rather than a
+  // wipe. It also travelled 2500px when 1990 clears the frame, wasting a
+  // fifth of the move off-screen.
+  //
+  // Now: accelerate from rest over five frames, then leave at a steady
+  // ~137px/frame. Same energy, but the edge is legible the whole way
+  // across, which is what makes it a wipe.
+  const b1RecedeU = easeProgress(frame, 66, 84, (t) => t);
+  const b1BoxY = smoothKeys(b1RecedeU, [0, 0.28, 1], [0, -300, -2080], {startTangent: 0, endTangent: -2540});
+  const b1BoxYPrev = smoothKeys(
+    easeProgress(frame - 1, 66, 84, (t) => t),
+    [0, 0.28, 1],
+    [0, -300, -2080],
+    {startTangent: 0, endTangent: -2540},
+  );
+  // Blur from its own travel, so the fast frames smear instead of stepping.
+  // Divided by the panel's own scaleY, because a CSS filter is applied in
+  // the element's LOCAL space and the transform scales the result — at
+  // scaleY 19 a nominal 16px blur lands on screen as ~300px of mush. This
+  // asks for ~50px of falloff and gets ~50px, which is about what a real
+  // 180-degree shutter would give an edge travelling 145px per frame.
+  const b1BoxBlur = motionBlur(b1BoxY - b1BoxYPrev, 150, 50) / Math.max(b1BoxSY, 1);
+  const b1BoxOn = b1BoxIn > 0.002 && b1RecedeU < 0.999;
 
-  // The shockwave every settled word takes when LANGWEILIG. lands.
-  const kickT = frame - b1ImpactHit;
-  const kickAmt = kickT >= 0 && kickT <= 10 ? Math.sin((kickT / 10) * Math.PI) * 12 : 0;
-  const anticT = b1ImpactHit - 6 - frame;
-  const anticAmt = anticT >= 0 && anticT <= 6 ? Math.sin((anticT / 6) * Math.PI) * 0.03 : 0;
+  // ---- the shockwave, as a HIERARCHY rather than one shared number ----
+  // Everything shaking by the same amount is what makes a frame look cheap.
+  // LANGWEILIG. is the object that lands, so it carries the whole reaction;
+  // the type around it takes a fraction, and later, by distance from the
+  // hit; the camera (below) takes least of all. Mass matters too — the
+  // 208px display words barely move, the 42px kicker moves most.
+  const lwRecoil = impactOffset(frame, b1ImpactHit, 11, -13, 3); // PRIMARY
+  const istNichtRecoil = impactOffset(frame, b1ImpactHit + 1, 9, -7); // nearest + lightest
+  const markeRecoil = impactOffset(frame, b1ImpactHit + 2, 10, -4.5);
+  const deineRecoil = impactOffset(frame, b1ImpactHit + 4, 10, -3.5); // furthest + heaviest
+  // Anticipation: a single 3% compression before the hit, not an oscillation.
+  const anticAmt = impactOffset(frame, b1ImpactHit - 7, 7, 0.03, 1);
 
   // =========================================================================
   // BEAT 2 — THE PROBLEM. One headline, one secondary metric attached to it
   // by a red tick, two tertiary signals that physically interact.
   // =========================================================================
-  const b2TextStart = 68;
+  // Nudged later with the longer wipe: the panel now clears around f84, and
+  // the reveal must uncover typography that is still MOVING. Uncovering
+  // settled type turns a continuous handoff back into two separate shots.
+  const b2TextStart = 72;
   const b2TickStart = 96;
   const b2MetricsStart = 86;
   const b2AnticStart = 128;
@@ -93,8 +155,13 @@ export const OffscriptReel: React.FC = () => {
   const skipP = easeProgress(frame, skipTravelStart, skipTravelStart + skipTravelDur, easeInOutCubic);
   const skipX = interpolate(skipP, [0, 1], [0, 900]);
   // SKIP physically reaches 0 SHARES at ~60% of its travel and knocks it.
-  const collideT = frame - (skipTravelStart + skipTravelDur * 0.6);
-  const collideKick = collideT >= 0 && collideT <= 9 ? Math.sin((collideT / 9) * Math.PI) : 0;
+  // A chip is MICRO UI: light, quick, and knocked along the axis it was
+  // actually hit on. It used to take 46px + 7deg, which is a hero-scale
+  // reaction on a 30px label — bigger than the object itself.
+  const collideAt = skipTravelStart + skipTravelDur * 0.6;
+  const collideX = impactOffset(frame, collideAt, 10, 14);
+  const collideY = impactOffset(frame, collideAt, 10, -3);
+  const collideRot = impactOffset(frame, collideAt, 10, 2.2, 3);
 
   // =========================================================================
   // BEAT 3 — OFFSCRIPT REVEAL + the WEGSWIPT resist.
@@ -122,8 +189,8 @@ export const OffscriptReel: React.FC = () => {
   // BEAT 5 — THE MACHINE.
   // =========================================================================
   const b5ChainStart = 312;
-  const b5MetricStart = b5ChainStart + 78;
-  const b5RollDur = 20;
+  const b5MetricStart = b5ChainStart + 70;
+  const b5RollDur = 24;
   const b5LaunchStart = b5MetricStart + 30;
   const b5LaunchEnd = b5LaunchStart + 14;
 
@@ -145,6 +212,27 @@ export const OffscriptReel: React.FC = () => {
   const b7TaglineStart = 520;
   const b7UrlStart = 537;
   const b7CtaStart = 548;
+
+  // =========================================================================
+  // THE CAMERA — four moments in twenty seconds, and not one of them is
+  // meant to be noticed as camera movement.
+  //
+  // Every amplitude here is inside the brief's ceiling (X 2-6px, Y 2-8px,
+  // rotation 0.05-0.25deg, 5-10 frames). They are the third voice in each
+  // reaction, under the object that was hit and under the type around it,
+  // and each one reacts on the axis the force actually acted on:
+  //
+  //   LANGWEILIG.   punches up   -> the frame recoils DOWN
+  //   WEGSWIPT.     thrown right -> the frame drags LEFT
+  //   100K+         comes at you -> SCALE, plus a touch of Y (item 6)
+  //   NICHT DURCH.  lands        -> DOWN, the closing weight
+  // =========================================================================
+  const cameraImpacts: Impact[] = [
+    {start: b1ImpactHit, duration: 9, x: -2.5, y: 5, rotate: 0.16, cycles: 3},
+    {start: b3HitStart + 2, duration: 8, x: -4, y: 1.5, rotate: 0.08},
+    {start: b5MetricStart + b5RollDur, duration: 9, scale: 0.006, y: 2},
+    {start: b6Line2Start + 11, duration: 8, x: 1.5, y: 4, rotate: 0.1},
+  ];
 
   // =========================================================================
   // SOUND — sparse accents only, on the moments that carry weight.
@@ -177,6 +265,7 @@ export const OffscriptReel: React.FC = () => {
         </Sequence>
       ))}
 
+      <CameraRig frame={frame} impacts={cameraImpacts}>
       {/* ================= BEAT 1 — HOOK =================
           The red field sits UNDER the type so LANGWEILIG. stays readable on
           top of it while it floods — that is what makes the transition read
@@ -191,6 +280,7 @@ export const OffscriptReel: React.FC = () => {
             height: LW_H,
             background: BRAND.red,
             opacity: b1BoxIn,
+            filter: b1BoxBlur ? `blur(${b1BoxBlur}px)` : undefined,
             transform: `translateY(${b1BoxY}px) scale(${b1BoxSX}, ${b1BoxSY})`,
             transformOrigin: '50% 50%',
           }}
@@ -198,16 +288,16 @@ export const OffscriptReel: React.FC = () => {
       )}
 
       <div style={{opacity: 1 - b1Consumed}}>
-        <HookWord frame={frame} text="DEINE" start={b1DeineStart} dur={13} fromY={280} fromScale={1.18} fontSize={236} left={-46} top={250} extraY={kickAmt} extraScale={1 - anticAmt} />
-        <HookWord frame={frame} text="MARKE" start={b1MarkeStart} dur={14} fromY={90} fromX={230} fromScale={1.14} fontSize={236} left={300} top={440} extraY={kickAmt} extraScale={1 - anticAmt} />
-        <div style={{position: 'absolute', left: 74, top: 640, transform: `translateY(${kickAmt * 0.45}px)`}}>
+        <HookWord frame={frame} text="DEINE" start={b1DeineStart} dur={15} fromY={280} fromScale={1.16} fontSize={HOOK_SIZE} left={CONTENT.left} top={286} extraY={deineRecoil} extraScale={1 - anticAmt} />
+        <HookWord frame={frame} text="MARKE" start={b1MarkeStart} dur={16} fromY={90} fromX={150} fromScale={1.12} fontSize={HOOK_SIZE} left={CONTENT.left + 200} top={470} extraY={markeRecoil} extraScale={1 - anticAmt} />
+        <div style={{position: 'absolute', left: CONTENT.left + 2, top: 652, transform: `translateY(${istNichtRecoil}px)`}}>
           <KineticWord text="IST NICHT" frame={frame} fps={fps} enterStart={b1IstNichtStart} enterDur={11} fontSize={42} fontWeight={700} color={BRAND.muted} fromY={26} transformOrigin="0% 100%" />
         </div>
       </div>
 
       {/* LANGWEILIG. — red on the page, white once its own field is behind
           it, then faded away while the field holds full-frame. */}
-      <div style={{position: 'absolute', left: 64, top: 700, opacity: 1 - b1LwFade}}>
+      <div style={{position: 'absolute', left: CONTENT.left - 6, top: 700, opacity: 1 - b1LwFade, transform: `translateY(${lwRecoil}px)`}}>
         <KineticWord
           text="LANGWEILIG."
           frame={frame}
@@ -241,7 +331,7 @@ export const OffscriptReel: React.FC = () => {
       </div>
 
       {/* ================= BEAT 2 — THE PROBLEM ================= */}
-      <div style={{position: 'absolute', left: 72, top: 618, width: 960}}>
+      <div style={{position: 'absolute', left: CONTENT.left, top: 618, width: CONTENT_W}}>
         <KineticPhrase
           words={[{text: 'DEIN'}, {text: 'CONTENT'}]}
           frame={frame}
@@ -274,13 +364,13 @@ export const OffscriptReel: React.FC = () => {
           thickness={3}
           progress={easeProgress(frame, b2TickStart, b2TickStart + 9, easeOutExpo) * (1 - swipeProgress)}
           origin="start"
-          style={{position: 'absolute', left: 76, top: 792}}
+          style={{position: 'absolute', left: CONTENT.left + 4, top: 792}}
         />
         <SocialMetric
           frame={frame}
           fps={fps}
           enterStart={b2MetricsStart}
-          x={76}
+          x={CONTENT.left + 4}
           y={848}
           rotate={-2}
           depth={1}
@@ -291,7 +381,7 @@ export const OffscriptReel: React.FC = () => {
           swipeDelay={0}
           swipeDirection={-1}
         />
-        <div style={{transform: `translate(${collideKick * 46}px, ${collideKick * -14}px) rotate(${collideKick * 7}deg)`, transformOrigin: '50% 50%'}}>
+        <div style={{transform: `translate(${collideX}px, ${collideY}px) rotate(${collideRot}deg)`, transformOrigin: '50% 50%'}}>
           <SocialMetric
             frame={frame}
             fps={fps}
@@ -310,10 +400,14 @@ export const OffscriptReel: React.FC = () => {
         <div
           style={{
             position: 'absolute',
-            left: 60 + skipX,
+            left: 60,
             top: 986,
             opacity: skipEnterP * (1 - swipeProgress),
-            transform: `rotate(${-skipP * 5}deg)`,
+            // `left` is a LAYOUT property: the browser resolves it during
+            // layout and snaps text to whole pixels, so a smooth 900px
+            // travel arrives as a staircase. Transforms are composited with
+            // sub-pixel precision — same path, no stepping.
+            transform: `translateX(${skipX}px) rotate(${-skipP * 5}deg)`,
             filter: skipP > 0 && skipP < 1 ? `blur(${motionBlur(skipX - interpolate(easeProgress(frame - 1, skipTravelStart, skipTravelStart + skipTravelDur, easeInOutCubic), [0, 1], [0, 900]), 80, 12)}px)` : undefined,
           }}
         >
@@ -343,7 +437,11 @@ export const OffscriptReel: React.FC = () => {
                 align="center"
               />
             </SwipeReact>
-            <div style={{marginTop: 6, display: 'flex', alignItems: 'baseline', gap: 14}}>
+            {/* gap 26, not 14: WEGSWIPT.'s counter-swing is ~13px back to
+                the left, which ate a 14px word space entirely and left it
+                touching "NICHT" at the bottom of the recoil. The gap has to
+                clear the recoil, not just the rest pose. */}
+            <div style={{marginTop: 6, display: 'flex', alignItems: 'baseline', gap: 26}}>
               <SwipeReact frame={frame} hitStart={b3HitStart} amount={0.14} delay={2}>
                 <KineticPhrase
                   words={[{text: 'DEN'}, {text: 'MAN'}, {text: 'NICHT'}]}
@@ -376,10 +474,10 @@ export const OffscriptReel: React.FC = () => {
       <SwipeStreak frame={frame} hitStart={b3HitStart} />
 
       {/* ================= BEAT 4 — SERVICES ================= */}
-      <div style={{position: 'absolute', left: 72, top: 556}}>
+      <div style={{position: 'absolute', left: CONTENT.left, top: 556}}>
         <B4Anchor frame={frame} start={b4AnchorStart} exitStart={b4AnchorExit} />
       </div>
-      <div style={{position: 'absolute', left: 72, top: 620}}>
+      <div style={{position: 'absolute', left: CONTENT.left, top: 620}}>
         <ServiceMachine
           frame={frame}
           start={b4MachineStart}
@@ -387,7 +485,7 @@ export const OffscriptReel: React.FC = () => {
           hold={14}
           moveDur={11}
           rowHeight={250}
-          width={940}
+          width={widthAt(620)}
           fontSize={132}
           railGrowStart={b4RailGrow}
           services={[
@@ -400,26 +498,32 @@ export const OffscriptReel: React.FC = () => {
       </div>
 
       {/* ================= BEAT 5 — THE MACHINE ================= */}
-      <div style={{position: 'absolute', left: 72, top: 812}}>
+      <div style={{position: 'absolute', left: CONTENT.left, top: 812}}>
         <ProcessChain frame={frame} start={b5ChainStart} fontSize={80} growExitStart={b5LaunchStart} />
       </div>
       {/* The roller sits in the same band the hero statement resolves into,
           so the explosion and the headline are one continuous mass rather
           than two things in two places. */}
       <B5MetricLaunch frame={frame} launchStart={b5LaunchStart} launchEnd={b5LaunchEnd}>
-        <div style={{position: 'absolute', left: 72, top: 884}}>
+        <div style={{position: 'absolute', left: CONTENT.left, top: 860}}>
           <MetricRoller frame={frame} fps={fps} start={b5MetricStart} duration={b5RollDur} values={['3K', '12K', '47K', '100K+']} fontSize={148} />
         </div>
       </B5MetricLaunch>
 
       {/* ================= BEAT 6 — HERO ================= */}
       <B6Collapse frame={frame} exitStart={b6ExitStart} exitEnd={b6ExitEnd}>
-        <div style={{position: 'absolute', left: 72, top: 840, transform: `scale(${breathe(frame)})`}}>
+        {/* No ambient "breathing" scale here. A 1% sine on held display
+            type resamples every glyph every frame — the type shimmers
+            faintly for the whole hold, which is precisely the texture the
+            brief describes as jittery. A hold should be a hold; the energy
+            in this beat comes from what enters it, not from the headline
+            never sitting still. */}
+        <div style={{position: 'absolute', left: CONTENT.left, top: 840}}>
           <B6Antic frame={frame} anticStart={b6AnticStart} pushStart={b6Line2Start}>
             {/* Resolves straight out of the counter's blur — a match, not an
                 entrance of its own. */}
             <MatchIn frame={frame} start={b6Line1Start} dur={16}>
-              <div style={{fontFamily: FONT, fontWeight: 800, fontSize: 124, letterSpacing: -3, color: BRAND.ink, whiteSpace: 'nowrap'}}>
+              <div style={{fontFamily: FONT, fontWeight: 800, fontSize: HERO_SIZE, letterSpacing: -3, color: BRAND.ink, whiteSpace: 'nowrap'}}>
                 FALL AUF.
               </div>
             </MatchIn>
@@ -431,7 +535,7 @@ export const OffscriptReel: React.FC = () => {
               fps={fps}
               enterStart={b6Line2Start}
               enterDur={18}
-              fontSize={124}
+              fontSize={HERO_SIZE}
               color={BRAND.red}
               impact
               tilt
@@ -476,6 +580,10 @@ export const OffscriptReel: React.FC = () => {
           </div>
         </div>
       </AbsoluteFill>
+      </CameraRig>
+
+      {/* QC only — flip to true to check safe zones on a still. */}
+      <SafeZoneGuides />
     </AbsoluteFill>
   );
 };
@@ -501,6 +609,12 @@ const HookWord: React.FC<{
   extraY?: number;
   extraScale?: number;
 }> = ({frame, text, start, dur, fromY = 0, fromX = 0, fromScale = 1, fontSize, left, top, extraY = 0, extraScale = 1}) => {
+  // Not yet started is NOT the same as at rest. An eased progress clamps to
+  // 0 before its window opens, and 0 here is a perfectly valid VISIBLE pose
+  // — offset and oversized — so the word would sit parked at its entry
+  // position for a couple of frames and then set off. It enters already
+  // moving fast and heavily blurred, so there is nothing to fade in.
+  if (frame < start) return null;
   const at = (f: number) => easeProgress(f, start, start + dur, easeOutCubic);
   const p = at(frame);
   const pPrev = at(frame - 1);
@@ -510,6 +624,9 @@ const HookWord: React.FC<{
   const blur = motionBlur(v, fontSize * 0.34, 36);
   const stretch = velocityStretch(v, fontSize * 0.34, 0.1);
   const scale = interpolate(p, [0, 1], [fromScale, 1]) * extraScale;
+  // Two frames of ramp, spent entirely inside the entry blur, so the word
+  // resolves out of its own smear instead of switching on.
+  const opacity = easeProgress(frame, start, start + 2, easeOutCubic);
 
   return (
     <div
@@ -517,6 +634,7 @@ const HookWord: React.FC<{
         position: 'absolute',
         left,
         top,
+        opacity,
         fontFamily: FONT,
         fontWeight: 800,
         fontSize,
@@ -581,8 +699,8 @@ const B3LogoCollapse: React.FC<{frame: number; exitStart: number; children: Reac
   const x = interpolate(p, [0, 1], [0, -394]);
   const y = interpolate(p, [0, 1], [0, -168]);
   const scale = interpolate(p, [0, 1], [1, 0.06]);
-  const blur = interpolate(p, [0, 0.6, 1], [0, 6, 16]);
-  const opacity = interpolate(p, [0, 0.8, 1], [1, 0.7, 0]);
+  const blur = Math.max(0, smoothKeys(p, [0, 0.6, 1], [0, 6, 16]));
+  const opacity = smoothKeys(p, [0, 0.8, 1], [1, 0.7, 0]);
   return (
     <div style={{transform: `translate(${x}px, ${y}px) scale(${scale})`, filter: blur ? `blur(${blur}px)` : undefined, opacity}}>
       {children}
@@ -594,21 +712,34 @@ const B3LogoCollapse: React.FC<{frame: number; exitStart: number; children: Reac
  *  an external force, not a spring), then the CONTENT resists and springs
  *  back with one overshoot. Blur and a matching horizontal stretch are
  *  measured from its own travel, so the smear is genuinely directional. */
-const swipeResistX = (local: number) => {
-  // Thrown to the RIGHT, into open space — WEGSWIPT. is the last word on
-  // its line, so a leftward throw would drag it across "DEN MAN NICHT" and
-  // read as a collision rather than as the word resisting a swipe.
-  const THROW = 112;
-  if (local < 0) return 0;
-  if (local <= 5) return interpolate(easeProgress(local, 0, 5, easeInCubic), [0, 1], [0, THROW]);
-  return withOvershoot(Math.min((local - 5) / 16, 1), THROW, 0, 0.22);
-};
+const SWIPE_THROW = 112; // px — inside the brief's 70-120 range
+const SWIPE_DUR = 26;
+
+/**
+ * The swipe, as ONE continuous trajectory.
+ *
+ * It used to be two functions stitched together: an easeInCubic throw over
+ * 5 frames, then a separate spring-back. At the seam the word was moving
+ * +67px/frame and the next frame it was moving -14px/frame — an
+ * instantaneous reversal with no deceleration between them, which is
+ * exactly what "abrupt" and "mechanical" look like at 30fps.
+ *
+ * Now it is the impulse response of a damped oscillator: accelerate out,
+ * reach the throw, decelerate, cross back through rest, one counter-swing
+ * of about 12% of the throw, and settle at EXACTLY 0. Position, velocity
+ * and acceleration are continuous the whole way, and there is no seam
+ * because there is no second function.
+ */
+const swipeResistX = (local: number) => impactOffset(local, 0, SWIPE_DUR, SWIPE_THROW);
 
 const SwipeResist: React.FC<{frame: number; fps: number; hitStart: number; children: React.ReactNode}> = ({frame, hitStart, children}) => {
   const x = swipeResistX(frame - hitStart);
   const v = x - swipeResistX(frame - hitStart - 1);
-  const blur = motionBlur(v, 26, 22);
-  const stretch = velocityStretch(v, 26, 0.16);
+  // Reference speed matches the trajectory's real peak (~42px/frame), so
+  // blur tracks the motion instead of saturating for most of the throw and
+  // then falling off a cliff.
+  const blur = motionBlur(v, 42, 24);
+  const stretch = velocityStretch(v, 42, 0.16);
   return (
     <div
       style={{
@@ -649,7 +780,8 @@ const SwipeStreak: React.FC<{frame: number; hitStart: number}> = ({frame, hitSta
     <div
       style={{
         position: 'absolute',
-        left: x,
+        left: 0,
+        transform: `translateX(${x}px)`,
         top: 1118, // on WEGSWIPT.'s own baseline, not floating above it
         width: 340,
         height: 3,
@@ -684,15 +816,21 @@ const B5MetricLaunch: React.FC<{frame: number; launchStart: number; launchEnd: n
   if (p >= 0.999) return null;
   const scale = interpolate(p, [0, 1], [1, 3.8]);
   const blur = interpolate(p, [0, 1], [0, 38]);
-  const opacity = interpolate(p, [0, 0.75, 1], [1, 0.35, 0]);
+  const opacity = Math.max(0, smoothKeys(p, [0, 0.75, 1], [1, 0.35, 0]));
   return <div style={{transform: `scale(${scale})`, transformOrigin: '10% 50%', filter: blur ? `blur(${blur}px)` : undefined, opacity}}>{children}</div>;
 };
 
 /** Resolves out of an oversized blur — the receiving half of a match cut. */
 const MatchIn: React.FC<{frame: number; start: number; dur: number; children: React.ReactNode}> = ({frame, start, dur, children}) => {
-  const p = easeProgress(frame, start, start + dur, easeOutExpo);
+  // easeOutQuint, not easeOutExpo: expo puts three quarters of a 2.4x
+  // scale collapse into the first four frames and then coasts, which reads
+  // as a snap followed by a hold. Same distance, same window, spread over
+  // the frames it actually occupies.
+  const p = easeProgress(frame, start, start + dur, easeOutQuint);
   const scale = interpolate(p, [0, 1], [2.4, 1]);
-  const blur = interpolate(p, [0, 0.55, 1], [30, 6, 0]);
+  // Blur resolves on a smooth curve that reaches 0 at zero rate — a blur
+  // that pops off the instant an object lands is as visible as a jump.
+  const blur = Math.max(0, smoothKeys(p, [0, 0.55, 1], [30, 6, 0]));
   const opacity = interpolate(p, [0, 0.25], [0, 1], {extrapolateRight: 'clamp'});
   return (
     <div style={{transform: `scale(${scale})`, transformOrigin: '0% 50%', filter: blur ? `blur(${blur}px)` : undefined, opacity}}>
@@ -710,9 +848,10 @@ const B6Antic: React.FC<{frame: number; anticStart: number; pushStart: number; c
   children,
 }) => {
   const anticP = easeProgress(frame, anticStart, anticStart + 6, easeInOutCubic);
-  const pushT = frame - (pushStart + 18 * 0.62);
-  const pushKick = pushT >= 0 && pushT <= 8 ? Math.sin((pushT / 8) * Math.PI) * 12 : 0;
-  const y = interpolate(anticP, [0, 1], [0, -9]) - pushKick;
+  // Pushed UP by the word landing beneath it — a secondary reaction, so a
+  // fraction of the primary, on the axis the force arrived from.
+  const pushKick = impactOffset(frame, pushStart + 18 * 0.62, 9, -6);
+  const y = interpolate(anticP, [0, 1], [0, -9]) + pushKick;
   return <div style={{transform: `translateY(${y}px)`}}>{children}</div>;
 };
 
@@ -733,8 +872,8 @@ const B6Collapse: React.FC<{frame: number; exitStart: number; exitEnd: number; c
   // compress to exactly the point the logo resolves at, which is what makes
   // it read as a transformation instead of a swap.
   const y = interpolate(p, [0, 1], [0, -132]);
-  const blur = interpolate(p, [0, 0.4, 0.66], [0, 14, 32], {extrapolateRight: 'clamp'});
-  const opacity = interpolate(p, [0, 0.45, 0.66], [1, 0.8, 0], {extrapolateRight: 'clamp'});
+  const blur = Math.max(0, smoothKeys(p, [0, 0.4, 0.66, 1], [0, 14, 32, 32]));
+  const opacity = Math.max(0, smoothKeys(p, [0, 0.45, 0.66, 1], [1, 0.8, 0, 0]));
   return (
     <div
       style={{
