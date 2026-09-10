@@ -1,7 +1,7 @@
 import React from 'react';
 import {AbsoluteFill, Audio, Img, Sequence, interpolate, interpolateColors, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
 import {FILM_COLORS, TIMELINE} from './theme';
-import {morphProgress, withOvershoot, OFFSCRIPT_FAST, OFFSCRIPT_SMOOTH, OFFSCRIPT_OVERSHOOT, OFFSCRIPT_SCROLL, OFFSCRIPT_FLIP, OFFSCRIPT_SETTLE} from './springs';
+import {morphProgress, withOvershoot, getMotionBlur, OFFSCRIPT_FAST, OFFSCRIPT_SMOOTH, OFFSCRIPT_OVERSHOOT, OFFSCRIPT_SCROLL, OFFSCRIPT_FLIP, OFFSCRIPT_SETTLE} from './springs';
 import {MorphingPill} from './components/MorphingPill';
 import {MaskText} from './components/MaskText';
 import {StatOdometer} from './components/StatOdometer';
@@ -62,7 +62,7 @@ const heroKeyframes: HeroKF[] = [
   {frame: T.logoIn, width: LOGO_DISPLAY_WIDTH * 0.86, height: 3, radius: 1.5, bg: RED, borderColor: 'transparent', borderWidth: 0, shadow: 0, y: Y_CENTER},
 ];
 
-const getHero = (frame: number, fps: number): HeroKF => {
+const computeHeroAt = (frame: number, fps: number): HeroKF => {
   let a = heroKeyframes[0];
   let b = heroKeyframes[heroKeyframes.length - 1];
   for (let i = 0; i < heroKeyframes.length - 1; i++) {
@@ -96,6 +96,26 @@ const getHero = (frame: number, fps: number): HeroKF => {
     shadow: lerp(a.shadow, b.shadow),
     y: lerp(a.y, b.y),
   };
+};
+
+type HeroState = HeroKF & {blur: number};
+
+// The hero shape is the fastest-moving thing on screen at several points
+// (pill -> rule, the compress -> line stretch into the logo slot) but,
+// unlike text and icons, never got its own motion blur. Measured the same
+// way as everywhere else: a real width/height delta between this frame and
+// the last, run through getMotionBlur — not a hand-timed blur pulse, and
+// exactly 0 the instant a hold begins (nothing is moving) so readable
+// states (the pill hold, the services card, a quiet rule) stay crisp.
+const HERO_MAX_VELOCITY = 22; // px/frame combined width+height change — a fast morph
+const HERO_MAX_BLUR = 9;
+
+const getHero = (frame: number, fps: number): HeroState => {
+  const cur = computeHeroAt(frame, fps);
+  const prev = computeHeroAt(frame - 1, fps);
+  const velocity = Math.abs(cur.width - prev.width) + Math.abs(cur.height - prev.height);
+  const blur = getMotionBlur(velocity, HERO_MAX_VELOCITY, HERO_MAX_BLUR);
+  return {...cur, blur};
 };
 
 // ---------------------------------------------------------------------------
@@ -445,7 +465,10 @@ export const OffscriptFilm: React.FC = () => {
           borderColor={hero.borderColor}
           borderWidth={hero.borderWidth}
           shadow={hero.shadow}
-          style={{opacity: frame >= lineFadeStart ? lineOpacity : 1}}
+          style={{
+            opacity: frame >= lineFadeStart ? lineOpacity : 1,
+            filter: hero.blur ? `blur(${hero.blur}px)` : undefined,
+          }}
         >
           {/* OFFSCRIPT pill label */}
           <MaskText

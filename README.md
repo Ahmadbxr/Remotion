@@ -32,7 +32,20 @@ rule → collapses → travels to the logo's exact position) plus a small set of
 always-mounted `<MaskText>` blocks for every piece of copy. Nothing in the
 timeline conditionally mounts/unmounts at a scene boundary: every property
 (position, size, color, text-reveal) is a continuous function of a single
-global `frame`, so there is no seam for a jump to hide in.
+global `frame`, so there is no seam for a jump to hide in. Because the hero
+shape is one continuously-morphing element, several of its stage changes
+(dot → pill, pill → rule, the card collapsing, the rule stretching into the
+logo's line) double as shared-element transitions: the same shape doesn't
+cut from one form to the next, it visibly becomes it.
+
+The hero shape carries the same velocity-based motion blur as everything
+else (`getHero` measures its own width/height delta frame-to-frame and runs
+it through `getMotionBlur`) — its fast structural morphs (pill collapsing to
+a rule, the rule stretching out into the logo's line) blur convincingly in
+motion and land perfectly sharp the instant they're at rest; every hold
+(the pill showing "OFFSCRIPT", the services card, a quiet rule) has
+identical width/height frame-to-frame, so blur is structurally guaranteed
+to be exactly 0 there, not just visually tuned to look that way.
 
 **Rhythm**: fast transition, slow hold, throughout. Structural transitions
 run ~10-16 frames; readable content then holds 30-60+ frames before the
