@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="de" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="vendor/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #F5F3EF; }
+
+      :root {
+        --paper: #F5F3EF;
+        --ink: #111111;
+        --muted: #6E6A63;
+        --red: #F20505;
+        --navy: #0E1626;
+        --red-on-navy: #FF4433;
+        --sans: ui-sans-serif, system-ui, sans-serif;
+        --mono: ui-monospace, monospace;
+      }
+
+      #root { width: 100%; height: 100%; position: relative; background: var(--paper); font-family: var(--sans); }
+      .clip { position: absolute; inset: 0; }
+      .display { font-weight: 800; letter-spacing: -0.035em; line-height: 1; color: var(--ink); white-space: nowrap; }
+      .meta { font-family: var(--mono); font-weight: 700; letter-spacing: 0.16em; }
+
+      /* ================= S1 — the feed ================= */
+      /* A slow dot drift so the paper is never a dead plate. */
+      #s1-grid { position: absolute; inset: -80px; opacity: 0.55;
+                 background-image: radial-gradient(circle, rgba(17,17,17,0.15) 1.6px, transparent 1.7px);
+                 background-size: 48px 48px; }
+
+      #ph1 { position: absolute; left: 190px; top: 170px; width: 360px; height: 740px; }
+      .dev { position: absolute; inset: 0; border-radius: 46px; background: var(--navy);
+             box-shadow: 0 34px 90px rgba(17,17,17,0.22); }
+      #ph1-scr { position: absolute; left: 10px; top: 10px; width: 340px; height: 720px;
+                 border-radius: 36px; overflow: hidden; background: #EFECE5; }
+      #ph1-notch { position: absolute; left: 120px; top: 22px; width: 120px; height: 20px;
+                   border-radius: 10px; background: var(--navy); }
+      #feed { position: absolute; left: 20px; top: 0; width: 300px; filter: blur(0px); }
+      .fc { position: relative; width: 300px; height: 220px; border-radius: 14px;
+            margin-bottom: 18px; overflow: hidden; }
+      .fc.red { background: var(--red); }
+      .fc-av { position: absolute; left: 16px; top: 16px; width: 34px; height: 34px;
+               border-radius: 17px; background: rgba(17,17,17,0.16); }
+      .fc-b1 { position: absolute; left: 62px; top: 22px; width: 150px; height: 11px;
+               border-radius: 6px; background: rgba(17,17,17,0.16); }
+      .fc-b2 { position: absolute; left: 62px; top: 42px; width: 92px; height: 9px;
+               border-radius: 5px; background: rgba(17,17,17,0.10); }
+      .fc-img { position: absolute; left: 16px; top: 72px; width: 268px; height: 132px;
+                border-radius: 10px; background: rgba(17,17,17,0.09); }
+      .fc.red .fc-av, .fc.red .fc-b1 { background: rgba(255,255,255,0.80); }
+      .fc.red .fc-b2 { background: rgba(255,255,255,0.55); }
+      .fc.red .fc-img { background: rgba(255,255,255,0.20); }
+
+      #ph1-rail { position: absolute; right: 7px; top: 0; width: 3px; height: 720px;
+                  border-radius: 2px; background: rgba(17,17,17,0.10); }
+      #ph1-thumb { position: absolute; right: 7px; top: 0; width: 3px; height: 90px;
+                   border-radius: 2px; background: rgba(17,17,17,0.34); }
+
+      .chip { position: absolute; width: 72px; height: 72px; border-radius: 23px; background: #FFFFFF;
+              box-shadow: 0 10px 26px rgba(17,17,17,0.12); display: flex; align-items: center;
+              justify-content: center; opacity: 0; }
+      .chip svg { width: 34px; height: 34px; fill: var(--ink); opacity: 0.80; }
+
+      .h1 { position: absolute; left: 700px; font-size: 96px; }
+      #h1a { top: 372px; } #h1b { top: 478px; }
+      #h1rule { position: absolute; left: 700px; top: 606px; width: 300px; height: 4px;
+                background: var(--red); transform-origin: 0% 50%; }
+      #h1c { position: absolute; left: 702px; top: 638px; font-size: 30px; color: var(--red); }
+
+      /* ================= S2 — the stop ================= */
+      /* The card the feed stops on, grown to the full frame from its own place. */
+      #s2-field { position: absolute; inset: 0; background: var(--red); transform-origin: 13.58% 50%; }
+      .fly { position: absolute; width: 300px; height: 220px; border-radius: 14px;
+             border: 3px solid rgba(255,255,255,0.55); background: rgba(255,255,255,0.07); }
+      #fly0 { left: 220px; top: 186px; } #fly1 { left: 220px; top: 424px; } #fly2 { left: 220px; top: 662px; }
+      .h2 { position: absolute; left: 150px; font-size: 100px; font-weight: 800;
+            letter-spacing: -0.035em; line-height: 1; color: #FFFFFF; white-space: nowrap; }
+      #h2a { top: 420px; } #h2b { top: 526px; }
+      #h2k { position: absolute; left: 154px; top: 330px; font-size: 30px; color: #FFFFFF; }
+
+      /* ================= S3 — production ================= */
+      #s3-all { position: absolute; inset: 0; background: var(--navy); }
+      /* A slow light sweep so the dark chapter keeps breathing. */
+      #s3-sweep { position: absolute; top: 0; left: -700px; width: 620px; height: 1080px;
+                  background: linear-gradient(100deg, rgba(255,255,255,0) 0%,
+                              rgba(255,255,255,0.055) 50%, rgba(255,255,255,0) 100%); }
+      .brk { position: absolute; width: 96px; height: 96px; border: 5px solid rgba(245,243,239,0.85); }
+      #brk0 { left: 90px;  top: 90px;  border-right: none; border-bottom: none; }
+      #brk1 { right: 90px; top: 90px;  border-left: none;  border-bottom: none; }
+      #brk2 { left: 90px;  bottom: 90px; border-right: none; border-top: none; }
+      #brk3 { right: 90px; bottom: 90px; border-left: none;  border-top: none; }
+      #s3-head { position: absolute; left: 152px; top: 154px; font-size: 28px; color: rgba(245,243,239,0.75); }
+      #rec { position: absolute; right: 152px; top: 150px; display: flex; align-items: center; gap: 14px; }
+      #rec-dot { width: 18px; height: 18px; border-radius: 9px; background: var(--red-on-navy); }
+      #rec-tx { font-family: var(--mono); font-weight: 700; letter-spacing: 0.22em;
+                font-size: 26px; color: rgba(245,243,239,0.9); }
+      #cam { position: absolute; left: 214px; top: 336px; width: 620px; height: 400px; }
+      .verb { position: absolute; left: 1010px; height: 86px; }
+      .verb-i { position: absolute; left: 0; top: 18px; font-family: var(--mono); font-size: 26px;
+                font-weight: 700; letter-spacing: 0.16em; color: var(--red-on-navy); }
+      .verb-t { position: absolute; left: 110px; top: 0; font-size: 66px; font-weight: 800;
+                letter-spacing: -0.02em; color: #F5F3EF; white-space: nowrap; }
+
+      /* ================= S4 — four phones ================= */
+      #s4-head { position: absolute; left: 152px; top: 150px; font-size: 28px; color: var(--muted); }
+      #s4-rule { position: absolute; left: 152px; top: 200px; width: 1616px; height: 2px;
+                 background: rgba(17,17,17,0.14); transform-origin: 0% 50%; }
+      .sp { position: absolute; top: 268px; width: 300px; height: 760px; }
+      .sp-dev { position: relative; width: 300px; height: 616px; border-radius: 38px;
+                background: var(--navy); box-shadow: 0 26px 70px rgba(17,17,17,0.18); }
+      .sp-scr { position: absolute; left: 8px; top: 8px; width: 284px; height: 600px;
+                border-radius: 31px; overflow: hidden; background: #EFECE5; }
+      .sp-strip { position: absolute; left: 16px; top: 0; width: 252px; }
+      .sb { width: 252px; height: 120px; border-radius: 12px; margin-bottom: 14px;
+            background: rgba(17,17,17,0.10); }
+      .sb.tall { height: 190px; background: rgba(17,17,17,0.13); }
+      .sb.wide { height: 78px; background: rgba(242,5,5,0.24); }
+      .sp-notch { position: absolute; left: 105px; top: 18px; width: 90px; height: 16px;
+                  border-radius: 8px; background: var(--navy); }
+      .sp-idx { position: absolute; left: 0; right: 0; top: 650px; text-align: center;
+                font-family: var(--mono); font-size: 24px; font-weight: 700;
+                letter-spacing: 0.18em; color: var(--red); }
+      .sp-nm { position: absolute; left: 0; right: 0; top: 692px; text-align: center;
+               font-size: 46px; font-weight: 800; letter-spacing: -0.02em; color: var(--ink); }
+
+      /* ================= S5 — the address ================= */
+      #s5-logo { position: absolute; left: 50%; top: 292px; width: 540px; margin-left: -270px; }
+      #s5-url { position: absolute; left: 0; right: 0; top: 582px; text-align: center;
+                font-size: 96px; font-weight: 700; letter-spacing: -0.02em; color: var(--ink); }
+      #s5-rule { position: absolute; left: 50%; top: 706px; width: 430px; height: 5px;
+                 margin-left: -215px; background: var(--red); transform-origin: 0% 50%; }
+      #s5-tag { position: absolute; left: 0; right: 0; top: 758px; text-align: center;
+                font-family: var(--mono); font-size: 27px; font-weight: 600;
+                letter-spacing: 0.15em; color: var(--muted); }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="21.6" data-width="1920" data-height="1080">
+
+      <!-- S1 — the feed nobody stops for (0 -> 5.28, held under the growing card) -->
+      <div class="clip" id="s1" data-start="0" data-duration="6.2" data-track-index="0">
+        <div id="s1-grid" data-layout-allow-overflow></div>
+        <div id="ph1">
+          <div class="dev"></div>
+          <div id="ph1-scr">
+            <div id="feed" data-layout-allow-overflow>
+          <div class="fc" style="background:#D9D5CD"><div class="fc-av"></div><div class="fc-b1"></div><div class="fc-b2"></div><div class="fc-img"></div></div>
+          <div class="fc" style="background:#CFCAC1"><div class="fc-av"></div><div class="fc-b1"></div><div class="fc-b2"></div><div class="fc-img"></div></div>
+          <div class="fc" style="background:#E2DED6"><div class="fc-av"></div><div class="fc-b1"></div><div class="fc-b2"></div><div class="fc-img"></div></div>
+          <div class="fc" style="background:#D9D5CD"><div class="fc-av"></div><div class="fc-b1"></div><div class="fc-b2"></div><div class="fc-img"></div></div>
+          <div class="fc" style="background:#CFCAC1"><div class="fc-av"></div><div class="fc-b1"></div><div class="fc-b2"></div><div class="fc-img"></div></div>
+          <div class="fc" style="background:#E2DED6"><div class="fc-av"></div><div class="fc-b1"></div><div class="fc-b2"></div><div class="fc-img"></div></div>
+          <div class="fc" style="background:#D9D5CD"><div class="fc-av"></div><div class="fc-b1"></div><div class="fc-b2"></div><div class="fc-img"></div></div>
+          <div class="fc" style="background:#CFCAC1"><div class="fc-av"></div><div class="fc-b1"></div><div class="fc-b2"></div><div class="fc-img"></div></div>
+          <div class="fc" style="background:#E2DED6"><div class="fc-av"></div><div class="fc-b1"></div><div class="fc-b2"></div><div class="fc-img"></div></div>
+          <div class="fc" style="background:#D9D5CD"><div class="fc-av"></div><div class="fc-b1"></div><div class="fc-b2"></div><div class="fc-img"></div></div>
+          <div class="fc" style="background:#CFCAC1"><div class="fc-av"></div><div class="fc-b1"></div><div class="fc-b2"></div><div class="fc-img"></div></div>
+          <div class="fc" style="background:#E2DED6"><div class="fc-av"></div><div class="fc-b1"></div><div class="fc-b2"></div><div class="fc-img"></div></div>
+          <div class="fc" style="background:#D9D5CD"><div class="fc-av"></div><div class="fc-b1"></div><div class="fc-b2"></div><div class="fc-img"></div></div>
+          <div class="fc" style="background:#CFCAC1"><div class="fc-av"></div><div class="fc-b1"></div><div class="fc-b2"></div><div class="fc-img"></div></div>
+          <div class="fc" style="background:#E2DED6"><div class="fc-av"></div><div class="fc-b1"></div><div class="fc-b2"></div><div class="fc-img"></div></div>
+          <div class="fc red"><div class="fc-av"></div><div class="fc-b1"></div><div class="fc-b2"></div><div class="fc-img"></div></div>
+          <div class="fc" style="background:#CFCAC1"><div class="fc-av"></div><div class="fc-b1"></div><div class="fc-b2"></div><div class="fc-img"></div></div>
+          <div class="fc" style="background:#E2DED6"><div class="fc-av"></div><div class="fc-b1"></div><div class="fc-b2"></div><div class="fc-img"></div></div>
+            </div>
+            <div id="ph1-rail"></div>
+            <div id="ph1-thumb"></div>
+          </div>
+          <div id="ph1-notch"></div>
+        </div>
+        <div class="chip" id="c0" style="left:596px; top:258px;"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.6-9.3-8.4C1 9.6 2.6 6 6.2 6c2 0 3.2 1.1 3.8 2 .6-.9 1.8-2 3.8-2 3.6 0 5.2 3.6 3.5 6.6C19 16.4 12 21 12 21z"/></svg></div>
+        <div class="chip" id="c1" style="left:84px; top:516px;"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
+        <div class="chip" id="c2" style="left:604px; top:690px;"><svg viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg></div>
+        <div class="chip" id="c3" style="left:106px; top:246px;"><svg viewBox="0 0 24 24"><path d="M4 4h16v11H8l-4 4V4z"/></svg></div>
+        <div class="chip" id="c4" style="left:612px; top:424px;"><svg viewBox="0 0 24 24"><path d="M14 9V5l7 7-7 7v-4H3V9z"/></svg></div>
+        <div class="display h1" id="h1a">NIEMAND WARTET</div>
+        <div class="display h1" id="h1b">AUF DEINEN POST.</div>
+        <div id="h1rule"></div>
+        <div class="meta" id="h1c">DER DAUMEN ENTSCHEIDET.</div>
+      </div>
+
+      <!-- S2 — the stop (5.28 -> 9.68) -->
+      <div class="clip" id="s2" data-start="5.28" data-duration="4.4" data-track-index="1">
+        <div id="s2-field" data-layout-allow-overflow></div>
+        <div class="fly" id="fly0"></div>
+        <div class="fly" id="fly1"></div>
+        <div class="fly" id="fly2"></div>
+        <div class="meta h2x" id="h2k">DER DAUMEN BLEIBT STEHEN.</div>
+        <div class="h2" id="h2a">ALSO GIB IHNEN</div>
+        <div class="h2" id="h2b">EINEN GRUND.</div>
+      </div>
+
+      <!-- S3 — production (8.96 -> 13.36) -->
+      <div class="clip" id="s3" data-start="8.96" data-duration="4.4" data-track-index="2">
+        <div id="s3-all" data-layout-allow-overflow>
+          <div id="s3-sweep" data-layout-allow-overflow></div>
+          <div class="brk" id="brk0"></div><div class="brk" id="brk1"></div>
+          <div class="brk" id="brk2"></div><div class="brk" id="brk3"></div>
+          <div class="meta" data-layout-allow-overflow id="s3-head">PRODUKTION</div>
+          <div id="rec" data-layout-allow-overflow><div id="rec-dot"></div><div id="rec-tx" data-layout-allow-overflow>REC</div></div>
+          <svg id="cam" viewBox="0 0 620 400" fill="none"
+               stroke="#F5F3EF" stroke-width="7" stroke-linejoin="round">
+            <rect id="cam-body" x="26" y="118" width="336" height="212" rx="30" />
+            <rect id="cam-grip" x="96" y="70" width="150" height="36" rx="14" />
+            <rect id="cam-eye"  x="4" y="158" width="46" height="74" rx="12" />
+            <circle id="cam-r1" cx="120" cy="210" r="40" />
+            <circle id="cam-r2" cx="248" cy="210" r="40" />
+            <path id="cam-barrel" d="M362 168 L430 148 L430 300 L362 278 Z" />
+            <circle id="cam-lens" cx="494" cy="224" r="66" />
+            <circle id="cam-iris" cx="494" cy="224" r="6" stroke-width="10" />
+          </svg>
+          <div class="verb" data-layout-allow-overflow id="vb0" style="top:318px;"><span class="verb-i">01</span><span class="verb-t">PLANEN</span></div>
+          <div class="verb" data-layout-allow-overflow id="vb1" style="top:422px;"><span class="verb-i">02</span><span class="verb-t">DREHEN</span></div>
+          <div class="verb" data-layout-allow-overflow id="vb2" style="top:526px;"><span class="verb-i">03</span><span class="verb-t">SCHNEIDEN</span></div>
+          <div class="verb" data-layout-allow-overflow id="vb3" style="top:630px;"><span class="verb-i">04</span><span class="verb-t">POSTEN</span></div>
+        </div>
+      </div>
+
+      <!-- S4 — what comes out of it (12.65 -> 17.65) -->
+      <div class="clip" id="s4" data-start="12.65" data-duration="5.0" data-track-index="3">
+        <div class="meta" id="s4-head">WAS WIR MACHEN</div>
+        <div id="s4-rule"></div>
+        <div class="sp" id="sp0" style="left:240px;">
+          <div class="sp-dev">
+            <div class="sp-scr"><div class="sp-strip" data-layout-allow-overflow id="sps0">
+              <div class="sb tall"></div><div class="sb"></div><div class="sb wide"></div>
+              <div class="sb tall"></div><div class="sb"></div><div class="sb wide"></div>
+            </div></div>
+            <div class="sp-notch"></div>
+          </div>
+          <div class="sp-idx">01</div>
+          <div class="sp-nm">CONTENT</div>
+        </div>
+        <div class="sp" id="sp1" style="left:620px;">
+          <div class="sp-dev">
+            <div class="sp-scr"><div class="sp-strip" data-layout-allow-overflow id="sps1">
+              <div class="sb tall"></div><div class="sb"></div><div class="sb wide"></div>
+              <div class="sb tall"></div><div class="sb"></div><div class="sb wide"></div>
+            </div></div>
+            <div class="sp-notch"></div>
+          </div>
+          <div class="sp-idx">02</div>
+          <div class="sp-nm">STRATEGIE</div>
+        </div>
+        <div class="sp" id="sp2" style="left:1000px;">
+          <div class="sp-dev">
+            <div class="sp-scr"><div class="sp-strip" data-layout-allow-overflow id="sps2">
+              <div class="sb tall"></div><div class="sb"></div><div class="sb wide"></div>
+              <div class="sb tall"></div><div class="sb"></div><div class="sb wide"></div>
+            </div></div>
+            <div class="sp-notch"></div>
+          </div>
+          <div class="sp-idx">03</div>
+          <div class="sp-nm">SOCIAL</div>
+        </div>
+        <div class="sp" id="sp3" style="left:1380px;">
+          <div class="sp-dev">
+            <div class="sp-scr"><div class="sp-strip" data-layout-allow-overflow id="sps3">
+              <div class="sb tall"></div><div class="sb"></div><div class="sb wide"></div>
+              <div class="sb tall"></div><div class="sb"></div><div class="sb wide"></div>
+            </div></div>
+            <div class="sp-notch"></div>
+          </div>
+          <div class="sp-idx">04</div>
+          <div class="sp-nm">CREATOR</div>
+        </div>
+      </div>
+
+      <!-- S5 — the address (17.38 -> 21.60) -->
+      <div class="clip" id="s5" data-start="17.38" data-duration="4.22" data-track-index="4">
+        <img id="s5-logo" src="assets/img/logo.png" alt="Offscript" />
+        <div id="s5-url">offscript.ch</div>
+        <div id="s5-rule"></div>
+        <div id="s5-tag">WIR STOPPEN DEN DAUMEN.</div>
+      </div>
+
+      <!-- ================= AUDIO ================= -->
+      <audio id="music" src="assets/music/music.mp3" data-start="0" data-duration="21.6" data-volume="1"
+        data-automation='{"version":1,"lanes":[{"target":"volume","points":[
+          {"t":0,"v":0},{"t":0.5,"v":0.34},{"t":5.0,"v":0.36},{"t":5.4,"v":0.46},
+          {"t":8.8,"v":0.46},{"t":9.6,"v":0.42},{"t":12.6,"v":0.44},{"t":16.9,"v":0.38},
+          {"t":18.3,"v":0.24},{"t":19.6,"v":0.10},{"t":20.4,"v":0}]}]}'></audio>
+
+      <!-- texture: one continuous air bed under the accelerating feed -->
+      <audio id="sfx-bed" src="assets/sfx/scroll-bed.ogg" data-start="0.30" data-volume="0.20"></audio>
+      <!-- the riser peaks exactly where the feed stops -->
+      <audio id="sfx-riser" src="assets/sfx/riser.ogg" data-start="3.00" data-volume="0.30"></audio>
+      <!-- the stop — the only two-layer moment in the film -->
+      <audio id="sfx-impact" src="assets/sfx/impact.ogg" data-start="5.28" data-volume="0.55"></audio>
+      <audio id="sfx-sub" src="assets/sfx/sub.ogg" data-start="5.28" data-volume="0.42"></audio>
+      <!-- the two swipe transitions -->
+      <audio id="sfx-sw1" src="assets/sfx/swipe.ogg" data-start="8.96"  data-volume="0.26"></audio>
+      <audio id="sfx-sw2" src="assets/sfx/swipe.ogg" data-start="12.65" data-volume="0.24"></audio>
+      <!-- four tiny marks, one per production verb -->
+      <audio id="sfx-t0" src="assets/sfx/tick.ogg" data-start="10.01" data-volume="0.22"></audio>
+      <audio id="sfx-t1" src="assets/sfx/tick.ogg" data-start="10.54" data-volume="0.19"></audio>
+      <audio id="sfx-t2" src="assets/sfx/tick.ogg" data-start="11.06" data-volume="0.21"></audio>
+      <audio id="sfx-t3" src="assets/sfx/tick.ogg" data-start="11.60" data-volume="0.18"></audio>
+      <!-- release under the address -->
+      <audio id="sfx-res" src="assets/sfx/resolve.ogg" data-start="17.91" data-volume="0.26"></audio>
+    </div>
+
+    <script>
+      const E = { out: "power3.out", soft: "power2.out", inOut: "power2.inOut", sine: "sine.inOut" };
+      const tl = gsap.timeline({ paused: true });
+
+      /* =====================================================================
+         S1 — the feed
+         The scroll is three chained tweens whose velocities MATCH at the
+         joins (800 px/s), so it accelerates, runs flat, and decelerates into
+         the stop without a single velocity step. Everything else in the scene
+         is continuous too: the grid drifts, the phone breathes, chips rise.
+         ===================================================================== */
+      tl.to("#s1-grid", { y: 48, duration: 5.2, ease: "none" }, 0.05);
+
+      tl.fromTo("#ph1", { opacity: 0, y: 46, scale: 0.965 },
+                        { opacity: 1, y: 0, scale: 1, duration: 0.85, ease: E.out }, 0.10);
+      tl.to("#ph1", { y: -7, duration: 2.5, ease: E.sine, repeat: 1, yoyo: true }, 0.95);
+
+      tl.to("#feed", { y: -440,  duration: 1.09, ease: "power2.in" }, 0.10);   // v -> 800 px/s
+      tl.to("#feed", { y: -2920, duration: 3.10, ease: "none" },      1.20);   // v =  800 px/s
+      tl.to("#feed", { y: -3320, duration: 0.98, ease: E.soft },      4.30);   // v 800 -> 0
+      tl.to("#feed", { filter: "blur(6px)", duration: 1.04, ease: "power2.in" }, 0.10);
+      tl.to("#feed", { filter: "blur(0px)", duration: 0.98, ease: E.soft }, 4.30);
+
+      tl.to("#ph1-thumb", { y: 84,  duration: 1.09, ease: "power2.in" }, 0.10);
+      tl.to("#ph1-thumb", { y: 554, duration: 3.10, ease: "none" },      1.20);
+      tl.to("#ph1-thumb", { y: 630, duration: 0.98, ease: E.soft },      4.30);
+
+      // Five UI chips rise past the phone on a stagger — the scene never has a
+      // frame with nothing moving in it.
+      [["#c0", 0.85], ["#c1", 1.45], ["#c2", 2.05], ["#c3", 2.70], ["#c4", 3.35]].forEach(([sel, t]) => {
+        tl.fromTo(sel, { opacity: 0, y: 26, scale: 0.9 },
+                       { opacity: 1, y: 0, scale: 1, duration: 0.55, ease: E.out }, t);
+        tl.to(sel, { y: -78, duration: 2.30, ease: "none" }, t + 0.55);
+        tl.to(sel, { opacity: 0, duration: 0.55, ease: E.inOut }, t + 2.30);
+      });
+
+      // 1.07 / 1.59 are beats. The hook is up inside the first second and a half.
+      tl.fromTo("#h1a", { opacity: 0, y: 34 }, { opacity: 1, y: 0, duration: 0.52, ease: E.out }, 1.07);
+      tl.fromTo("#h1b", { opacity: 0, y: 34 }, { opacity: 1, y: 0, duration: 0.52, ease: E.out }, 1.59);
+      tl.fromTo("#h1rule", { scaleX: 0 }, { scaleX: 1, duration: 0.46, ease: E.out }, 3.18);
+      tl.fromTo("#h1c", { opacity: 0, x: -16 }, { opacity: 1, x: 0, duration: 0.44, ease: E.out }, 3.32);
+      tl.to(["#h1a", "#h1b", "#h1rule", "#h1c"], { opacity: 0, duration: 0.26, ease: E.inOut }, 5.06);
+
+      /* =====================================================================
+         S2 — the stop
+         The red card the feed lands on IS the next scene: it grows from its
+         own place in the phone to the whole frame. Its corner radius unwinds
+         on the way out so it stops being a card exactly as it becomes a field.
+         ===================================================================== */
+      gsap.set("#s2-field", { scaleX: 0.15625, scaleY: 0.2037, borderRadius: 90 });
+      tl.to("#s2-field", { scaleX: 1, scaleY: 1, borderRadius: 0, duration: 0.64, ease: E.inOut }, 5.44);
+      // Three cards carry on past the stop and leave the top of the frame.
+      [["#fly0", 5.46], ["#fly1", 5.52], ["#fly2", 5.58]].forEach(([sel, t]) => {
+        tl.fromTo(sel, { opacity: 0.9, y: 0 }, { opacity: 0, y: -940, duration: 1.05, ease: E.soft }, t);
+      });
+      // The phone goes once the plate has passed its edges, so the card inside
+      // it never shows a second, differently-rounded edge against the field.
+      tl.to(["#ph1", "#s1-grid"], { opacity: 0, duration: 0.30, ease: E.inOut }, 5.62);
+      tl.fromTo("#h2k", { opacity: 0 }, { opacity: 0.85, duration: 0.4 }, 6.10);
+      tl.fromTo("#h2a", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, ease: E.out }, 6.34);
+      tl.fromTo("#h2b", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, ease: E.out }, 6.86);
+      // The red does not leave on its own — the next chapter pushes it off.
+      // It drifts up at a third of the incoming plate's rate, so the handoff
+      // parallaxes instead of cutting. (S3 paints above S2, so sliding the red
+      // out by itself would have happened behind an opaque plate: invisible.)
+      tl.to(["#s2-field", ".h2", "#h2k"], { y: -380, duration: 0.66, ease: E.inOut }, 8.96);
+      tl.to([".h2", "#h2k"], { opacity: 0, duration: 0.30, ease: E.inOut }, 9.10);
+
+      /* =====================================================================
+         S3 — production. The chapter arrives by scrolling up into frame.
+         ===================================================================== */
+      gsap.set("#s3-all", { y: 1140 });
+      tl.to("#s3-all", { y: 0, duration: 0.66, ease: E.inOut }, 8.96);
+      // The viewfinder closes onto the frame instead of appearing on it.
+      [["#brk0", -46, -46], ["#brk1", 46, -46], ["#brk2", -46, 46], ["#brk3", 46, 46]].forEach(([sel, dx, dy]) => {
+        tl.fromTo(sel, { opacity: 0, x: dx, y: dy }, { opacity: 1, x: 0, y: 0, duration: 0.7, ease: E.out }, 9.40);
+      });
+      tl.fromTo("#s3-head", { opacity: 0 }, { opacity: 1, duration: 0.36 }, 9.56);
+      tl.fromTo("#rec", { opacity: 0 }, { opacity: 1, duration: 0.36 }, 9.62);
+      // A slow pulse, not a blink — deterministic and never a hard edge.
+      tl.to("#rec-dot", { opacity: 0.25, duration: 0.62, ease: E.sine, repeat: 3, yoyo: true }, 9.80);
+      // The camera arrives, then keeps drifting for the whole chapter.
+      tl.fromTo("#cam", { opacity: 0, x: -54, scale: 0.94 },
+                        { opacity: 1, x: 0, scale: 1, duration: 0.85, ease: E.out }, 9.44);
+      tl.to("#cam", { x: 26, y: -10, duration: 3.2, ease: E.sine }, 10.30);
+      // The iris opens as the first verb lands.
+      tl.to("#cam-iris", { attr: { r: 30 }, duration: 0.9, ease: E.inOut }, 9.90);
+      // One light pass across the dark chapter.
+      tl.fromTo("#s3-sweep", { x: 0 }, { x: 2900, duration: 3.4, ease: E.inOut }, 9.60);
+      // 10.01 / 10.54 / 11.06 / 11.60 are beats. The verbs accumulate; all four
+      // are on screen together from 11.60, so each is readable for over a second.
+      [["#vb0", 10.01], ["#vb1", 10.54], ["#vb2", 11.06], ["#vb3", 11.60]].forEach(([sel, t]) => {
+        tl.fromTo(sel, { opacity: 0, x: 44 }, { opacity: 1, x: 0, duration: 0.5, ease: E.out }, t);
+      });
+      // The chapter scrolls away upward — same gesture as the feed.
+      tl.to("#s3-all", { y: -1140, duration: 0.66, ease: E.inOut }, 12.65);
+
+      /* =====================================================================
+         S4 — four phones
+         ===================================================================== */
+      tl.fromTo("#s4-head", { opacity: 0 }, { opacity: 1, duration: 0.36 }, 13.00);
+      tl.fromTo("#s4-rule", { scaleX: 0 }, { scaleX: 1, duration: 0.8, ease: E.out }, 13.04);
+      // Each phone rises into place on a beat, then keeps drifting at its own
+      // rate and phase — the row is never static and never in lockstep.
+      [["#sp0", 13.70, -10], ["#sp1", 14.22, 9], ["#sp2", 14.76, -8], ["#sp3", 15.28, 11]].forEach(([sel, t, drift]) => {
+        tl.fromTo(sel, { opacity: 0, y: 92, scale: 0.95 },
+                       { opacity: 1, y: 0, scale: 1, duration: 0.78, ease: E.out }, t);
+        tl.to(sel + " .sp-dev", { y: drift, duration: 2.6, ease: E.sine }, t + 0.78);
+      });
+      // Each screen scrolls its own content slowly, at its own speed.
+      [["#sps0", -120], ["#sps1", -166], ["#sps2", -96], ["#sps3", -142]].forEach(([sel, d]) => {
+        tl.fromTo(sel, { y: 0 }, { y: d, duration: 3.6, ease: E.sine }, 13.80);
+      });
+      // The row leaves downward, out of the way of the address.
+      tl.to([".sp"], { opacity: 0, y: 150, duration: 0.6, ease: "power2.in" }, 16.86);
+      tl.to(["#s4-head", "#s4-rule"], { opacity: 0, duration: 0.4, ease: E.inOut }, 16.86);
+
+      /* =====================================================================
+         S5 — the address. 17.91 / 18.44 / 19.48 are beats; then it stops.
+         ===================================================================== */
+      tl.fromTo("#s5-logo", { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.56, ease: E.out }, 17.91);
+      tl.fromTo("#s5-url", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.46, ease: E.out }, 18.44);
+      tl.fromTo("#s5-rule", { scaleX: 0 }, { scaleX: 1, duration: 0.46, ease: E.out }, 19.48);
+      tl.fromTo("#s5-tag", { opacity: 0 }, { opacity: 1, duration: 0.42 }, 20.02);
+      // From ~20.45s nothing moves and nothing sounds.
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>
