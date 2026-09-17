@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="de" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="vendor/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #F5F3EF; }
+
+      :root {
+        --paper: #F5F3EF;
+        --ink: #111111;
+        --muted: #6E6A63;
+        --red: #F20505;
+        --navy: #0E1626;
+        --red-on-navy: #FF4433;
+        --sans: ui-sans-serif, system-ui, sans-serif;
+        --mono: ui-monospace, monospace;
+      }
+
+      #root { width: 100%; height: 100%; position: relative; background: var(--paper); font-family: var(--sans); }
+      .clip { position: absolute; inset: 0; }
+
+      .display { font-weight: 800; letter-spacing: -0.035em; line-height: 1; color: var(--ink); white-space: nowrap; }
+      .meta { font-family: var(--mono); font-weight: 700; letter-spacing: 0.16em; color: var(--muted); }
+
+      /* ---------- S1 — das Skript ---------- */
+      #s1-head { position: absolute; left: 150px; top: 172px; font-size: 30px; }
+      #s1-hair { position: absolute; left: 150px; top: 226px; width: 1620px; height: 2px;
+                 background: rgba(17,17,17,0.18); transform-origin: 0% 50%; }
+      /* Deliberately generic industry boilerplate — NOT Offscript copy.
+         Set lighter and greyer than anything else in the film so the black
+         display type after the strike reads as a different voice entirely. */
+      .script { position: absolute; left: 150px; font-weight: 500; font-size: 66px;
+                letter-spacing: -0.012em; line-height: 1; color: var(--muted); white-space: nowrap; }
+      #sc0 { top: 306px; } #sc1 { top: 398px; } #sc2 { top: 490px; } #sc3 { top: 582px; }
+      /* Paper masks that retract to the right: the lines PRINT, they don't fade. */
+      .scmask { position: absolute; left: 150px; width: 1420px; height: 82px;
+                background: var(--paper); transform-origin: 100% 50%; }
+      #sm0 { top: 298px; } #sm1 { top: 390px; } #sm2 { top: 482px; } #sm3 { top: 574px; }
+      /* One stroke through the whole block. */
+      #s1-slash { position: absolute; left: 150px; top: 654px; width: 1150px; height: 10px; background: var(--red); }
+
+      /* ---------- S2 — off script ---------- */
+      #s2-field { position: absolute; inset: 0; background: var(--red); transform-origin: 41% 45%; }
+      #s2-head { position: absolute; left: 150px; top: 172px; font-size: 30px;
+                 font-family: var(--mono); font-weight: 700; letter-spacing: 0.22em; color: #FFFFFF; }
+      .s2-line { position: absolute; left: 150px; font-size: 100px; font-weight: 800;
+                 letter-spacing: -0.035em; line-height: 1; white-space: nowrap; }
+      #s2a, #s2b { color: #FFFFFF; }
+      #s2c, #s2d { color: var(--ink); }
+      #s2a { top: 376px; } #s2b { top: 482px; } #s2c { top: 622px; } #s2d { top: 728px; }
+
+      /* ---------- S3 — the service columns (also S4's dark chapter) ---------- */
+      .col { position: absolute; top: 0; width: 480px; height: 1080px; background: var(--navy);
+             transform-origin: 50% 100%; box-shadow: inset -1px 0 0 rgba(245,243,239,0.10); }
+      #col0 { left: 0; } #col1 { left: 480px; } #col2 { left: 960px; } #col3 { left: 1440px; }
+      .col-idx { position: absolute; left: 0; right: 0; top: 446px; text-align: center;
+                 font-family: var(--mono); font-size: 34px; font-weight: 700; letter-spacing: 0.18em; color: var(--red-on-navy); }
+      .col-nm  { position: absolute; left: 0; right: 0; top: 500px; text-align: center;
+                 font-size: 56px; font-weight: 800; letter-spacing: -0.02em; color: #F5F3EF; white-space: nowrap; }
+      .col-ul  { position: absolute; left: 50%; top: 590px; width: 48px; height: 4px; margin-left: -24px; background: var(--red-on-navy); }
+      /* The measuring rule: grows a quarter per service, then BECOMES the
+         process spine in S4. One element, two jobs. */
+      #rule { position: absolute; left: 0; top: 300px; width: 1920px; height: 6px;
+              background: var(--red-on-navy); transform-origin: 0% 50%; }
+
+      /* ---------- S4 — process + proof ---------- */
+      .stage { position: absolute; top: 392px; font-size: 54px; font-weight: 800;
+               letter-spacing: 0.01em; color: #F5F3EF; white-space: nowrap; }
+      #st0 { left: 150px; } #st1 { left: 486px; } #st2 { left: 822px; } #st3 { left: 1158px; } #st4 { left: 1494px; }
+      #head { position: absolute; left: 150px; top: 451px; width: 4px; height: 40px; background: var(--red-on-navy); }
+      #s4-label { position: absolute; left: 154px; top: 516px; font-family: var(--mono);
+                  font-size: 28px; font-weight: 700; letter-spacing: 0.18em; color: var(--red-on-navy); }
+      #s4-window { position: absolute; left: 150px; top: 560px; width: 1000px; height: 268px; overflow: hidden; }
+      #s4-strip { position: absolute; left: 0; top: 0; width: 1000px; }
+      #s4-strip div { height: 268px; line-height: 268px; font-size: 200px; font-weight: 800;
+                      letter-spacing: -0.045em; color: #F5F3EF; }
+
+      /* ---------- S5 — the address ---------- */
+      #s5-paper { position: absolute; inset: 0; background: var(--paper); transform-origin: 50% 100%; }
+      #s5-logo { position: absolute; left: 50%; top: 296px; width: 540px; margin-left: -270px; }
+      #s5-url { position: absolute; left: 0; right: 0; top: 586px; text-align: center;
+                font-size: 96px; font-weight: 700; letter-spacing: -0.02em; color: var(--ink); }
+      #s5-rule { position: absolute; left: 50%; top: 710px; width: 430px; height: 5px;
+                 margin-left: -215px; background: var(--red); transform-origin: 0% 50%; }
+      #s5-tag { position: absolute; left: 0; right: 0; top: 760px; text-align: center;
+                font-family: var(--mono); font-size: 27px; font-weight: 600; letter-spacing: 0.15em; color: var(--muted); }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="21.6" data-width="1920" data-height="1080">
+
+      <!-- S1 — das Skript (0 -> 4.02, held under the flood to 4.60) -->
+      <div class="clip" id="s1" data-start="0" data-duration="4.6" data-track-index="0">
+        <div id="s1-head" class="meta">DAS SKRIPT, DAS ALLE LESEN.</div>
+        <div id="s1-hair"></div>
+        <div class="script" data-layout-allow-occlusion id="sc0">WIR SIND EIN INNOVATIVER PARTNER</div>
+        <div class="script" data-layout-allow-occlusion id="sc1">MIT GANZHEITLICHEN LÖSUNGEN</div>
+        <div class="script" data-layout-allow-occlusion id="sc2">ENTLANG DER CUSTOMER JOURNEY</div>
+        <div class="script" data-layout-allow-occlusion id="sc3">FÜR NACHHALTIGE MEHRWERTE.</div>
+        <div class="scmask" id="sm0"></div>
+        <div class="scmask" id="sm1"></div>
+        <div class="scmask" id="sm2"></div>
+        <div class="scmask" id="sm3"></div>
+        <div id="s1-slash" data-layout-allow-overflow></div>
+      </div>
+
+      <!-- S2 — off script (4.02 -> 8.02) -->
+      <div class="clip" id="s2" data-start="4.02" data-duration="4.2" data-track-index="1">
+        <div id="s2-field" data-layout-allow-overflow></div>
+        <div id="s2-head">OFF SCRIPT.</div>
+        <div id="s2a" class="s2-line">DEINE MARKE IST</div>
+        <div id="s2b" class="s2-line">NICHT LANGWEILIG.</div>
+        <div id="s2c" class="s2-line">DEIN CONTENT</div>
+        <div id="s2d" class="s2-line">VIELLEICHT SCHON.</div>
+      </div>
+
+      <!-- S3 — the service columns; they stay up as S4's dark chapter (8.02 -> 17.10) -->
+      <div class="clip" id="s3" data-start="8.02" data-duration="9.68" data-track-index="2">
+        <div class="col" id="col0"></div>
+        <div class="col" id="col1"></div>
+        <div class="col" id="col2"></div>
+        <div class="col" id="col3"></div>
+        <div id="rule"></div>
+        <div class="col-idx" id="ix0" style="left:0px; width:480px;">01</div>
+        <div class="col-nm"  id="nm0" style="left:0px; width:480px;">CONTENT</div>
+        <div class="col-ul"  id="ul0" style="left:216px; margin-left:0;"></div>
+        <div class="col-idx" id="ix1" style="left:480px; width:480px;">02</div>
+        <div class="col-nm"  id="nm1" style="left:480px; width:480px;">STRATEGIE</div>
+        <div class="col-ul"  id="ul1" style="left:696px; margin-left:0;"></div>
+        <div class="col-idx" id="ix2" style="left:960px; width:480px;">03</div>
+        <div class="col-nm"  id="nm2" style="left:960px; width:480px;">SOCIAL</div>
+        <div class="col-ul"  id="ul2" style="left:1176px; margin-left:0;"></div>
+        <div class="col-idx" id="ix3" style="left:1440px; width:480px;">04</div>
+        <div class="col-nm"  id="nm3" style="left:1440px; width:480px;">CREATOR</div>
+        <div class="col-ul"  id="ul3" style="left:1656px; margin-left:0;"></div>
+      </div>
+
+      <!-- S4 — process + proof (12.02 -> 17.10) -->
+      <div class="clip" id="s4" data-start="12.02" data-duration="5.68" data-track-index="3">
+        <div class="stage" id="st0">IDEA</div>
+        <div class="stage" id="st1">SHOOT</div>
+        <div class="stage" id="st2">EDIT</div>
+        <div class="stage" id="st3">POST</div>
+        <div class="stage" id="st4">GROW</div>
+        <div id="head"></div>
+        <div id="s4-label">ERGEBNIS</div>
+        <div id="s4-window">
+          <div id="s4-strip" data-layout-allow-overflow>
+            <div>3K</div>
+            <div>12K</div>
+            <div>47K</div>
+            <div>100K+</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- S5 — the address (17.10 -> 21.60) -->
+      <div class="clip" id="s5" data-start="17.1" data-duration="4.5" data-track-index="4">
+        <div id="s5-paper"></div>
+        <img id="s5-logo" src="assets/img/logo.png" alt="Offscript" />
+        <div id="s5-url">offscript.ch</div>
+        <div id="s5-rule"></div>
+        <div id="s5-tag">CONTENT, DER HÄNGEN BLEIBT.</div>
+      </div>
+
+      <!-- ================= AUDIO ================= -->
+      <audio id="music" src="assets/music/music.mp3" data-start="0" data-duration="21.6" data-volume="1"
+        data-automation='{"version":1,"lanes":[{"target":"volume","points":[
+          {"t":0,"v":0},{"t":0.6,"v":0.30},{"t":3.9,"v":0.32},{"t":4.05,"v":0.42},
+          {"t":11.9,"v":0.42},{"t":12.1,"v":0.46},{"t":15.9,"v":0.46},{"t":16.4,"v":0.40},
+          {"t":18.0,"v":0.26},{"t":19.4,"v":0.10},{"t":20.2,"v":0}]}]}'></audio>
+
+      <!-- four related key ticks, one per printed line of boilerplate -->
+      <audio id="sfx-k0" src="assets/sfx/key1.ogg" data-start="0.50" data-volume="0.20"></audio>
+      <audio id="sfx-k1" src="assets/sfx/key2.ogg" data-start="1.20" data-volume="0.17"></audio>
+      <audio id="sfx-k2" src="assets/sfx/key3.ogg" data-start="1.90" data-volume="0.19"></audio>
+      <audio id="sfx-k3" src="assets/sfx/key4.ogg" data-start="2.55" data-volume="0.16"></audio>
+      <!-- the strike, exactly on the stroke -->
+      <audio id="sfx-strike" src="assets/sfx/strike.ogg" data-start="3.52" data-volume="0.42"></audio>
+      <!-- one weighted low impact under the flood -->
+      <audio id="sfx-flood" src="assets/sfx/flood.ogg" data-start="4.02" data-volume="0.60"></audio>
+      <!-- two alternating panel switches for the four columns -->
+      <audio id="sfx-p0" src="assets/sfx/panel-a.ogg" data-start="8.02"  data-volume="0.30"></audio>
+      <audio id="sfx-p1" src="assets/sfx/panel-b.ogg" data-start="9.02"  data-volume="0.27"></audio>
+      <audio id="sfx-p2" src="assets/sfx/panel-a.ogg" data-start="10.02" data-volume="0.29"></audio>
+      <audio id="sfx-p3" src="assets/sfx/panel-b.ogg" data-start="11.02" data-volume="0.26"></audio>
+      <!-- the payoff -->
+      <audio id="sfx-land" src="assets/sfx/land.ogg" data-start="16.02" data-volume="0.58"></audio>
+      <!-- the rule drawing under the address -->
+      <audio id="sfx-rule" src="assets/sfx/rule.ogg" data-start="19.02" data-volume="0.22"></audio>
+    </div>
+
+    <script>
+      const E = { out: "power3.out", inOut: "power2.inOut", strong: "expo.out" };
+      const tl = gsap.timeline({ paused: true });
+
+      /* The slash is rotated once, deterministically, and only its scaleX is
+         animated — so it draws from its own left end along its own axis. */
+      gsap.set("#s1-slash", { rotation: -15, transformOrigin: "0% 50%", scaleX: 0 });
+
+      /* ---------- S1 — das Skript ---------- */
+      tl.fromTo("#s1-head", { opacity: 0 }, { opacity: 1, duration: 0.34 }, 0.18);
+      tl.fromTo("#s1-hair", { scaleX: 0 }, { scaleX: 1, duration: 0.5, ease: E.out }, 0.22);
+      // Each line PRINTS: a paper mask retracts to the right in ten visible
+      // steps. Not a fade — the point is that someone is writing this drivel.
+      [["#sm0", 0.50], ["#sm1", 1.20], ["#sm2", 1.90], ["#sm3", 2.55]].forEach(([sel, t]) => {
+        tl.fromTo(sel, { scaleX: 1 }, { scaleX: 0, duration: 0.34, ease: "steps(10)" }, t);
+      });
+      // All four hold together for a full second, so the boredom registers.
+      // 3.52s is a beat: one stroke, 0.22s, through the whole block.
+      tl.to("#s1-slash", { scaleX: 1, duration: 0.22, ease: "power2.in" }, 3.52);
+      tl.to(".script", { opacity: 0.45, duration: 0.2, ease: E.inOut }, 3.60);
+
+      /* ---------- S2 — off script ---------- */
+      // 4.02s (beat). The red expands out of the slash's own centre; the
+      // full-bleed element means scale 1 covers the frame exactly.
+      tl.fromTo("#s2-field", { scaleX: 0.06, scaleY: 0.10 }, { scaleX: 1, duration: 0.34, ease: E.strong }, 4.02);
+      tl.to("#s2-field", { scaleY: 1, duration: 0.40, ease: "power2.in" }, 4.24);
+      // The header turns over IN PLACE: the document's own title becomes the
+      // brand name. Same position, same size, same weight.
+      tl.fromTo("#s2-head", { opacity: 0, x: -14 }, { opacity: 1, x: 0, duration: 0.36, ease: E.out }, 4.46);
+      tl.fromTo("#s2a", { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: 0.42, ease: E.out }, 4.52);
+      tl.fromTo("#s2b", { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: 0.42, ease: E.out }, 4.68);
+      // 6.03s (beat) — the payload, and it turns colour as well as meaning.
+      tl.fromTo("#s2c", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.40, ease: E.out }, 6.03);
+      tl.fromTo("#s2d", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.40, ease: E.out }, 6.19);
+      tl.to([".s2-line", "#s2-head"], { opacity: 0, duration: 0.18, ease: E.inOut }, 7.50);
+      // The red does not crossfade out: it retracts upward and paper is
+      // revealed from the bottom, into columns that then wipe up.
+      // The red LEAVES through the top of the frame as a body — it is not
+      // scaled away. Scaling it to zero left a 170px band vanishing in a single
+      // frame; translating it clears the edge instead. It eases out as it goes,
+      // so the last band still on screen is ~56px rather than ~170px. Paper is revealed
+      // from the bottom into columns that then wipe up. It runs past the 8.02
+      // beat on purpose, so the first navy column is already rising underneath
+      // and bare paper is never alone on screen.
+      tl.to("#s2-field", { y: -1140, duration: 0.46, ease: E.inOut }, 7.68);
+
+      /* ---------- S3 — the service columns ---------- */
+      // One per second on the beat grid: 8.02 / 9.02 / 10.02 / 11.02.
+      [0, 1, 2, 3].forEach((i) => {
+        const t = 8.02 + i;
+        tl.fromTo("#col" + i, { scaleY: 0 }, { scaleY: 1, duration: 0.34, ease: E.out }, t);
+        tl.fromTo("#ix" + i, { opacity: 0 }, { opacity: 1, duration: 0.26 }, t + 0.16);
+        tl.fromTo("#nm" + i, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.36, ease: E.out }, t + 0.18);
+        tl.fromTo("#ul" + i, { scaleX: 0 }, { scaleX: 1, duration: 0.26, ease: E.out }, t + 0.26);
+        // The rule measures the set: one quarter per service.
+        tl.fromTo("#rule", { scaleX: i * 0.25 }, { scaleX: (i + 1) * 0.25, duration: 0.34, ease: E.out }, t);
+      });
+      // All four hold together 11.02 -> 12.02 so the set reads as a system.
+
+      /* ---------- S4 — the rule becomes the spine ---------- */
+      // The labels leave; the columns stay. Only the type changes job.
+      [0, 1, 2, 3].forEach((i) => {
+        tl.to(["#ix" + i, "#nm" + i, "#ul" + i], { opacity: 0, y: -28, duration: 0.3, ease: "power2.in" }, 12.02 + i * 0.05);
+      });
+      // Same element, new role: the measuring rule drops into the middle of
+      // the frame and is now the process line.
+      tl.to("#rule", { y: 168, duration: 0.52, ease: E.inOut }, 12.20);
+      // A playhead runs it, and each stage appears as it is passed.
+      tl.fromTo("#head", { opacity: 0, x: 0 }, { opacity: 1, duration: 0.18 }, 12.74);
+      tl.to("#head", { x: 1440, duration: 1.60, ease: "none" }, 12.80);
+      [["#st0", 12.80], ["#st1", 13.173], ["#st2", 13.547], ["#st3", 13.920], ["#st4", 14.293]].forEach(([sel, t]) => {
+        tl.fromTo(sel, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.28, ease: E.out }, t);
+      });
+      tl.to("#head", { opacity: 0, duration: 0.22, ease: E.inOut }, 14.40);
+      // The counter rolls under the finished chain and lands on 16.02 — the
+      // single biggest cue in the track.
+      tl.fromTo("#s4-label", { opacity: 0 }, { opacity: 1, duration: 0.26 }, 14.34);
+      tl.fromTo("#s4-window", { opacity: 0 }, { opacity: 1, duration: 0.26 }, 14.42);
+      tl.fromTo("#s4-strip", { y: 0 }, { y: -268, duration: 0.26, ease: E.out }, 15.02);
+      tl.to("#s4-strip", { y: -536, duration: 0.26, ease: E.out }, 15.52);
+      tl.to("#s4-strip", { y: -804, duration: 0.30, ease: E.strong }, 16.02);
+      // ...and then everything stops for a full second.
+
+      /* ---------- S5 — the address ---------- */
+      // Paper RISES back over the navy — the same upward gesture the service
+      // columns used to build it. Nothing is faded away; it is covered.
+      tl.fromTo("#s5-paper", { scaleY: 0 }, { scaleY: 1, duration: 0.52, ease: E.inOut }, 17.06);
+      // Strong cues: 17.52 / 18.02 / 19.02.
+      tl.fromTo("#s5-logo", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.52, ease: E.out }, 17.52);
+      tl.fromTo("#s5-url", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.44, ease: E.out }, 18.02);
+      // The same red gesture that crossed the script out now underlines the
+      // address. Last motion in the film.
+      tl.fromTo("#s5-rule", { scaleX: 0 }, { scaleX: 1, duration: 0.44, ease: E.out }, 19.02);
+      tl.fromTo("#s5-tag", { opacity: 0 }, { opacity: 1, duration: 0.4 }, 19.52);
+      // From ~19.95s nothing moves and nothing sounds.
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>
