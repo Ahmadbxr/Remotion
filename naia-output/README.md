@@ -11,31 +11,38 @@ Beide übernehmen exakt die Werte des Clips: 2160 × 3840, 24000/1001 fps,
 378 Frames. Schnitt, Bildformat und Geschwindigkeit des Clips bleiben unverändert;
 das Overlay ist frame-genau deckungsgleich.
 
-## Gestaltung
+## Gestaltung (am Screenshot vermessen)
 
-| Zeit | Element | Bewegung |
-|---|---|---|
-| 0.21 – 2.21 s (Frame 5–53) | «THE ART OF SUSHI», warmweiss, auf der dunklen Fläche oberhalb des Bretts | 0.3 s einblenden und 24 px (bei 2160 px Breite) nach oben, halten, 0.35 s ausblenden |
-| dazwischen | — | keine Einblendungen |
-| 14.51 s – Ende (Frame 348–377) | NAIA-Logo auf dem freien Brett unterhalb der Sushi | 0.6 s ruhig einblenden mit 18 px Steigung, stehen bis zum letzten Frame |
+Gemessen am Screenshot des Clips (Kamera von oben, fix): dunkler Stahl
+0–23.2 % der Bildhöhe, helles Schneidebrett 23.2–80.4 %, Stahl darunter;
+ein Sushi-Stück am rechten Rand bei 24–37 %.
 
-Keine springenden Buchstaben, keine Partikel, keine Pfeile. Ein sehr weicher
-Schatten hält den warmweissen Text auch auf hellerem Holz lesbar.
+| Zeit | Element | Platz | Bewegung |
+|---|---|---|---|
+| 0.21 – 2.21 s (Frame 5–53) | «THE ART OF SUSHI», warmweiss | auf dem dunklen Stahl, Mitte bei 17.5 % — ca. 110 px Abstand zur Brettkante, unterhalb der oberen 14 % (Reels-Oberfläche) | 0.3 s einblenden, 24 px nach oben, halten, 0.35 s ausblenden |
+| dazwischen | — | — | keine Einblendungen |
+| 14.51 s – Ende (Frame 348–377) | NAIA-Logo, **dunkles Warmgrau #2A2420** | auf dem freien Brett, Mitte bei 60 % — oberhalb der unteren 35 % (Reels-Oberfläche) | 0.6 s einblenden, 18 px nach oben, stehen bis zum letzten Frame |
 
-## Stand dieser Lieferung — bitte lesen
+**Warum das Logo dunkel ist:** Das Brett ist hell cremeweiss. Warmweiss käme
+dort nur auf einen Kontrast von etwa 1.9 : 1 und wäre auf dem Handy kaum zu
+sehen. Dunkles Warmgrau erreicht etwa 6.9 : 1. Die Headline bleibt warmweiss
+auf dem dunklen Stahl (ca. 7.6 : 1). Für das echte Logo also eine **dunkle
+Version** (PNG/SVG mit Transparenz) verwenden.
 
-Der Originalclip liegt auf deinem Mac und war in der Cloud-Umgebung, in der
-das Projekt gebaut wurde, nicht verfügbar. Ebenso wenig NAIA-Logo und
--Schrift (naia-restaurant.ch ist dort gesperrt). Deshalb:
+Auf Handygrösse (390 pt Breite) sind beide Elemente klar lesbar, Seitenränder
+deutlich grösser als 6 %.
 
-- **Vorschau-Dateien in `vorschau/` laufen über einen STAND-IN**: einen
-  künstlichen Clip mit exakt denselben Spezifikationen (2160×3840,
-  24000/1001 fps, 378 Frames, mit Ton und Frame-Zähler). Damit sind Timing,
-  Synchronität und der Alpha-Export geprüft — nicht aber die Platzierung auf
-  dem echten Bild.
-- **Logo:** temporäre NAIA-Wortmarke, in der Vorschau pink gekennzeichnet
-  (im Overlay-Export ohne Kennzeichnung).
-- **Schrift:** Cormorant Garamond als austauschbare Ersatzschrift (SIL OFL).
+## Stand dieser Lieferung
+
+- Die Vorschau-Dateien in `vorschau/` laufen über den Screenshot als
+  Standbild (unten links als «REFERENZ» gekennzeichnet) — die Platzierung ist
+  damit am echten Bildausschnitt geprüft, die Bewegung des Clips selbst nicht.
+  Der Upload des Originalclips kam nur als 48-Byte-Fragment an.
+- **Annahme:** Der Screenshot zeigt die Kameraeinstellung, die im ganzen Clip
+  gleich bleibt. Liegen die fertigen Sushi-Stücke am Ende tiefer als ca. 55 %
+  der Bildhöhe, `logo.cy` entsprechend erhöhen (siehe unten).
+- Logo: temporäre NAIA-Wortmarke (Vorschau pink markiert, Overlay ohne Markierung).
+- Schrift: Cormorant Garamond als austauschbare Ersatzschrift (SIL OFL).
 
 ## So machst du es auf deinem Mac fertig
 
@@ -69,9 +76,5 @@ Im Studio (`npm run dev`) lassen sich beide Compositions live ansehen; mit
 
 ## Hinweis Reels/TikTok
 
-Wird der Clip als Reel gepostet, verdeckt die App die unteren rund 35 % des
-Bildes (Beschreibung, Buttons) und die oberen 14 %. Die Headline liegt mit
-`cy: 0.17` knapp unter der oberen Zone. Das Logo bei `cy: 0.80` liegt im
-unteren Bereich — auf dem Feed-Vorschaubild gut sichtbar, im Reel-Player
-teilweise verdeckt. Wenn das freie Brett es zulässt, das Logo höher setzen
-(Hilfslinien-Stills zeigen die Zonen).
+Die Hilfslinien-Stills zeigen die Bereiche, die die App überdeckt (oben 14 %,
+unten 35 %). Headline und Logo liegen beide ausserhalb.

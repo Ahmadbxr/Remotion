@@ -75,7 +75,7 @@ export const Logo: React.FC<{tempLabel?: boolean}> = ({tempLabel = false}) => {
   if (l.src) {
     return (
       <div style={wrap}>
-        <Img src={staticFile(l.src)} style={{width: w, height: 'auto', filter: 'drop-shadow(0 3px 18px rgba(0,0,0,0.35))'}} />
+        <Img src={staticFile(l.src)} style={{width: w, height: 'auto'}} />
       </div>
     );
   }
@@ -91,13 +91,12 @@ export const Logo: React.FC<{tempLabel?: boolean}> = ({tempLabel = false}) => {
           lineHeight: 1,
           letterSpacing: '0.32em',
           paddingLeft: '0.32em',
-          color: NAIA.color,
-          textShadow: NAIA.shadow,
+          color: l.color,
         }}
       >
         {l.tempName}
       </div>
-      <div style={{width: w * 0.16, height: 3, background: NAIA.color, opacity: 0.8, margin: `${nameSize * 0.22}px 0`, boxShadow: NAIA.shadow}} />
+      <div style={{width: w * 0.16, height: 3, background: l.color, opacity: 0.75, margin: `${nameSize * 0.22}px 0`}} />
       <div
         style={{
           fontFamily: `'${NAIA.fonts.text.family}', sans-serif`,
@@ -105,8 +104,7 @@ export const Logo: React.FC<{tempLabel?: boolean}> = ({tempLabel = false}) => {
           fontSize: nameSize * 0.2,
           letterSpacing: '0.34em',
           paddingLeft: '0.34em',
-          color: NAIA.color,
-          textShadow: NAIA.shadow,
+          color: l.color,
           whiteSpace: 'nowrap',
         }}
       >
