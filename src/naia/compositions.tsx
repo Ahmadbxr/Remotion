@@ -11,7 +11,8 @@ type PreviewProps = {guides: boolean};
 
 const NaiaPreview: React.FC<PreviewProps> = ({guides}) => (
   <AbsoluteFill style={{background: '#000'}}>
-    <Video src={staticFile(NAIA.source)} />
+    {/* fills the frame, so a lower-resolution proxy of the clip lines up too */}
+    <Video src={staticFile(NAIA.source)} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
     <NaiaGraphics tempLabel={!NAIA.logo.src} />
     {guides ? <Guides /> : null}
   </AbsoluteFill>
