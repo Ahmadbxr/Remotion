@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="de" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="vendor/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #0E1626; }
+      :root {
+        --paper: #F5F3EF; --ink: #111111; --muted: #6E6A63;
+        --red: #F20505; --navy: #0E1626; --red-on-navy: #FF4433;
+        --sans: ui-sans-serif, system-ui, sans-serif; --mono: ui-monospace, monospace;
+      }
+      #root { width: 100%; height: 100%; position: relative; overflow: hidden; background: var(--navy); font-family: var(--sans); }
+      .clip { position: absolute; inset: 0; }
+
+      /* The world: nine tiles, one camera. Everything the film shows lives here
+         at world coordinates; the camera is a transform on this one element. */
+      #world { position: absolute; left: 0; top: 0; width: 5760px; height: 3240px; transform-origin: 0 0; }
+      .tile { position: absolute; width: 1920px; height: 1080px; overflow: hidden; }
+      .tile.navy  { background: var(--navy); }
+      .tile.paper { background: var(--paper); }
+      .tile.red   { background: var(--red); }
+
+      .disp { position: absolute; font-weight: 800; letter-spacing: -0.035em; line-height: 1; white-space: nowrap; }
+      .d240 { font-size: 240px; letter-spacing: -0.05em; } .d160 { font-size: 160px; letter-spacing: -0.045em; }
+      .d150 { font-size: 150px; letter-spacing: -0.045em; } .d120 { font-size: 120px; }
+      .d96 { font-size: 96px; } .d84 { font-size: 84px; } .d66 { font-size: 66px; letter-spacing: -0.025em; } .d54 { font-size: 54px; letter-spacing: -0.02em; }
+      .mono { position: absolute; font-family: var(--mono); font-weight: 700; font-size: 26px; letter-spacing: 0.16em; white-space: nowrap; }
+      .lt { color: #F5F3EF; } .dk { color: var(--ink); } .wt { color: #FFFFFF; } .rd { color: var(--red); }
+      .mono.lt { color: rgba(245,243,239,0.82); } .mono.dk { color: var(--muted); } .mono.wt { color: rgba(255,255,255,0.9); }
+      .mono.dim { font-size: 22px; letter-spacing: 0.14em; }
+      .mono.lt.dim { color: rgba(245,243,239,0.6); } .mono.wt.dim { color: rgba(255,255,255,0.7); }
+      .ctr { left: 0 !important; width: 1920px; text-align: center; }
+      .slot { display: inline-block; height: 0; vertical-align: baseline; }
+      .w, .u, .cl { display: inline-block; }
+
+      .brk { position: absolute; width: 96px; height: 96px; border: 5px solid rgba(245,243,239,0.85); }
+      #k0 { left: 90px; top: 90px; border-right: none; border-bottom: none; }
+      #k1 { left: 1734px; top: 90px; border-left: none; border-bottom: none; }
+      #k2 { left: 90px; top: 894px; border-right: none; border-top: none; }
+      #k3 { left: 1734px; top: 894px; border-left: none; border-top: none; }
+
+      .pline { position: absolute; left: 150px; top: 560px; width: 1620px; height: 6px; background: var(--red); transform-origin: 0% 50%; }
+      .clrow { position: absolute; font-family: var(--mono); font-weight: 700; font-size: 34px; letter-spacing: 0.14em; color: #FFFFFF; white-space: nowrap; }
+      .cl { margin-right: 64px; }
+      #logo { position: absolute; left: 700px; top: 236px; width: 520px; }
+      .url { position: absolute; left: 0; width: 1920px; top: 556px; text-align: center; font-size: 110px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; color: var(--ink); white-space: nowrap; }
+
+      /* The one thing that is never cut: a red dot, born as REC. */
+      #dot { position: absolute; left: 0; top: 0; width: 24px; height: 24px; border-radius: 12px; background: var(--red); transform-origin: 50% 50%; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="36.0" data-width="1920" data-height="1080">
+      <div class="clip" id="scene" data-start="0" data-duration="36.0" data-track-index="0">
+        <div id="world" data-layout-allow-overflow>
+      <div class="tile navy" id="t0" style="left:0px; top:0px;" data-layout-allow-overflow>
+        <div class="brk" id="k0"></div><div class="brk" id="k1"></div><div class="brk" id="k2"></div><div class="brk" id="k3"></div>
+        <div class="mono lt" id="h0m" style="left:152px; top:154px;">SOCIAL MEDIA AGENTUR ZÜRICH</div>
+        <div class="mono lt" id="rec" style="left:1690px; top:156px;">REC</div>
+        <div class="disp lt d120" id="h0a" style="left:150px; top:380px;">SOCIAL MEDIA,</div>
+        <div class="disp lt d120" id="h0b" style="left:150px; top:506px;">DAS KLINGT</div>
+        <div class="disp lt d120" id="h0c" style="left:150px; top:638px;">WIE IHR.</div>
+        <div class="mono lt dim" id="h0f" style="left:152px; top:880px;">KONZEPTION &middot; DREH &middot; SCHNITT &middot; BETREUUNG</div>
+      </div>
+      <div class="tile paper" id="t1" style="left:1920px; top:0px;" data-layout-allow-overflow>
+        <div class="mono dk" id="h1m" style="left:152px; top:154px;">FÜR KMU.</div>
+        <div class="pline" id="pline"></div>
+        <div class="disp dk d66" id="pw0" style="left:150px; top:470px;">KONZEPTION</div>
+        <div class="disp dk d66" id="pw1" style="left:640px; top:470px;">DREH</div>
+        <div class="disp dk d66" id="pw2" style="left:1040px; top:470px;">SCHNITT</div>
+        <div class="disp dk d66" id="pw3" style="left:1420px; top:470px;">BETREUUNG</div>
+        <div class="mono dk dim" id="pc0" style="left:152px; top:602px;">STRATEGIE &amp; KAMPAGNENIDEEN</div>
+        <div class="mono dk dim" id="pc1" style="left:642px; top:602px;">BEI EUCH VOR ORT</div>
+        <div class="mono dk dim" id="pc2" style="left:1042px; top:602px;">VERTIKAL, UNTERTITELT</div>
+        <div class="mono dk dim" id="pc3" style="left:1422px; top:602px;">POSTING, COMMUNITY, REPORTING</div>
+      </div>
+      <div class="tile navy" id="t2" style="left:3840px; top:0px;" data-layout-allow-overflow>
+        <div class="mono lt" id="h2m" style="left:152px; top:154px;">LEISTUNGEN</div>
+        <div class="disp lt d54" id="sr0" style="left:200px; top:300px;">SOCIAL- &amp; IMAGEVIDEOS BEI EUCH VOR ORT.</div>
+        <div class="disp lt d54" id="sr1" style="left:200px; top:470px;">VERTIKALER SCHNITT.</div>
+        <div class="disp lt d54" id="sr2" style="left:200px; top:640px;">REDAKTIONSPLAN, POSTING, COMMUNITY.</div>
+        <div class="disp lt d54" id="sr3" style="left:200px; top:810px;">IN-HOUSE CREATORS.</div>
+        <div class="mono lt dim" id="sc0" style="left:202px; top:366px;">KOMPAKTES SET, KURZE DREHTAGE</div>
+        <div class="mono lt dim" id="sc1" style="left:202px; top:536px;">UNTERTITEL, SOUNDDESIGN, FORMAT-VARIANTEN</div>
+        <div class="mono lt dim" id="sc2" style="left:202px; top:706px;">MONATLICHES REPORTING</div>
+        <div class="mono lt dim" id="sc3" style="left:202px; top:876px;">WENN IHR NICHT SELBST VOR DIE KAMERA WOLLT</div>
+      </div>
+      <div class="tile red" id="t3" style="left:3840px; top:1080px;" data-layout-allow-overflow>
+        <div class="mono wt" id="h3m" style="left:152px; top:154px;">FÜR KMU IN</div>
+        <div class="disp wt d84" id="ct0" style="left:220px; top:420px;">ZÜRICH</div>
+        <div class="disp wt d84" id="ct1" style="left:800px; top:420px;">BASEL</div>
+        <div class="disp wt d84" id="ct2" style="left:1310px; top:420px;">LUZERN</div>
+        <div class="disp wt d84" id="ct3" style="left:220px; top:640px;">ZUG</div>
+        <div class="disp wt d84" id="ct4" style="left:700px; top:640px;">BERN</div>
+        <div class="disp wt d84" id="ct5" style="left:1180px; top:640px;">ST. GALLEN</div>
+        <div class="mono wt dim" id="h3f" style="left:152px; top:880px;">SOCIAL MEDIA &amp; VIDEOPRODUKTION</div>
+      </div>
+      <div class="tile navy" id="t4" style="left:3840px; top:2160px;" data-layout-allow-overflow>
+        <div class="disp lt d240" id="n1" style="left:150px; top:300px;">1<span class="slot" id="slot-dec" style="width:34px"></span>4 MIO.</div>
+        <div class="mono lt" id="n1c" style="left:156px; top:560px;">ACCOUNTS ERREICHT</div>
+        <div class="disp lt d160" id="n2" style="left:150px; top:640px;">3&rsquo;000+</div>
+        <div class="mono lt" id="n2c" style="left:156px; top:820px;">NEUE FOLLOWER FÜR UNSERE KUNDEN</div>
+      </div>
+      <div class="tile paper" id="t5" style="left:1920px; top:2160px;" data-layout-allow-overflow>
+        <div class="disp dk d96" id="p1" style="left:150px; top:380px;">MONATLICHE PAKETE<span class="slot" id="slot-p" style="width:22px"></span></div>
+        <div class="disp rd d150" id="p2" style="left:150px; top:500px;">AB CHF 1&rsquo;500</div>
+        <div class="mono dk" id="p3" style="left:156px; top:690px;">PRO MONAT</div>
+      </div>
+      <div class="tile navy" id="t6" style="left:0px; top:2160px;" data-layout-allow-overflow>
+        <div class="mono lt" id="h6m" style="left:152px; top:154px;">BRANCHEN</div>
+        <div class="disp lt d96" id="b-row1" style="left:150px; top:400px;"><span class="w" id="b0">GASTRONOMIE</span><span class="slot" id="slot-b1" style="width:70px"></span><span class="w" id="b1">BEAUTY</span></div>
+        <div class="disp lt d96" id="b-row2" style="left:150px; top:560px;"><span class="w" id="b2">IMMOBILIEN</span><span class="slot" id="slot-b2" style="width:70px"></span><span class="w" id="b3">TELCO</span></div>
+      </div>
+      <div class="tile red" id="t7" style="left:0px; top:1080px;" data-layout-allow-overflow>
+        <div class="mono wt" id="h7m" style="left:152px; top:154px;">KUNDEN</div>
+        <div class="disp wt d84" id="c1" style="left:150px; top:330px;">VOM QUARTIERRESTAURANT</div>
+        <div class="disp wt d84" id="c2" style="left:150px; top:430px;">BIS ZUR TELCO<span class="slot" id="slot-c" style="width:20px"></span></div>
+        <div class="clrow" id="clrow" style="left:150px; top:640px;"><span class="cl" id="cl0">NAIA</span><span class="cl" id="cl1">LYVÉ</span><span class="cl" id="cl2">IMMOLIVING AG</span><span class="cl" id="cl3">YALLO</span></div>
+      </div>
+      <div class="tile paper" id="t8" style="left:1920px; top:1080px;" data-layout-allow-overflow>
+        <img id="logo" src="assets/img/logo.png" alt="Offscript" />
+        <div class="url" id="url"><span class="u" id="u1">offscript</span><span class="slot" id="slot-url" style="width:26px"></span><span class="u" id="u2">ch</span></div>
+        <div class="mono dk ctr" id="e1" style="left:0px; top:706px;">hello@offscript.ch</div>
+        <div class="mono dk ctr dim" id="e2" style="left:0px; top:752px;">+41 76 619 29 52 &middot; ZÜRICH</div>
+      </div>
+          <div id="dot" data-layout-allow-overflow></div>
+        </div>
+      </div>
+
+      <!-- ================= AUDIO ================= -->
+      <audio id="music" src="assets/music/music.mp3" data-start="0" data-duration="36.0" data-volume="1"
+        data-automation='{"version":1,"lanes":[{"target":"volume","points":[
+          {"t":0,"v":0},{"t":0.5,"v":0.34},{"t":16.0,"v":0.36},{"t":16.3,"v":0.42},{"t":19.0,"v":0.40},
+          {"t":29.3,"v":0.40},{"t":29.7,"v":0.30},{"t":32.0,"v":0.30},{"t":32.4,"v":0.36},
+          {"t":34.2,"v":0.20},{"t":35.4,"v":0.06},{"t":36.0,"v":0}]}]}'></audio>
+      <!-- the camera grammar: the same quiet air pass on every move -->
+      <audio id="mv0" src="assets/sfx/move.ogg" data-start="3.55" data-volume="0.16"></audio>
+      <audio id="mv1" src="assets/sfx/move.ogg" data-start="7.35" data-volume="0.16"></audio>
+      <audio id="mv2" src="assets/sfx/move.ogg" data-start="11.47" data-volume="0.16"></audio>
+      <audio id="mv3" src="assets/sfx/move.ogg" data-start="15.28" data-volume="0.16"></audio>
+      <audio id="mv4" src="assets/sfx/move.ogg" data-start="19.10" data-volume="0.16"></audio>
+      <audio id="mv5" src="assets/sfx/move.ogg" data-start="22.37" data-volume="0.16"></audio>
+      <audio id="mv6" src="assets/sfx/move.ogg" data-start="25.65" data-volume="0.16"></audio>
+      <audio id="mvz" src="assets/sfx/move.ogg" data-start="31.10" data-volume="0.18"></audio>
+      <!-- the dot draws the process line -->
+      <audio id="draw" src="assets/sfx/draw.ogg" data-start="4.64" data-volume="0.22"></audio>
+      <!-- six pins, barely there -->
+      <audio id="hop0" src="assets/sfx/hop.ogg" data-start="12.40" data-volume="0.12"></audio>
+      <audio id="hop1" src="assets/sfx/hop.ogg" data-start="12.76" data-volume="0.12"></audio>
+      <audio id="hop2" src="assets/sfx/hop.ogg" data-start="13.12" data-volume="0.12"></audio>
+      <audio id="hop3" src="assets/sfx/hop.ogg" data-start="13.48" data-volume="0.12"></audio>
+      <audio id="hop4" src="assets/sfx/hop.ogg" data-start="13.84" data-volume="0.12"></audio>
+      <audio id="hop5" src="assets/sfx/hop.ogg" data-start="14.20" data-volume="0.12"></audio>
+      <!-- the decimal point lands -->
+      <audio id="land" src="assets/sfx/land.ogg" data-start="16.38" data-volume="0.48"></audio>
+      <!-- pulling back to the whole world -->
+      <audio id="swell" src="assets/sfx/swell.ogg" data-start="29.17" data-volume="0.38"></audio>
+      <!-- release on the address -->
+      <audio id="res" src="assets/sfx/resolve.ogg" data-start="32.19" data-volume="0.28"></audio>
+    </div>
+
+    <script>
+      const E = { out: "power3.out", soft: "power2.out", inOut: "power2.inOut", sine: "sine.inOut" };
+      const tl = gsap.timeline({ paused: true });
+
+      /* ---- camera ---------------------------------------------------------
+         cam(X, Y, s): show world tile whose top-left is (X, Y), at scale s
+         about the viewport centre. transform-origin of #world is 0 0. */
+      const cam = (X, Y, s) => ({ x: 960 - (X + 960) * s, y: 540 - (Y + 540) * s, scale: s });
+      const T = {"t0": [0, 0], "t1": [1920, 0], "t2": [3840, 0], "t7": [0, 1080], "t8": [1920, 1080], "t3": [3840, 1080], "t6": [0, 2160], "t5": [1920, 2160], "t4": [3840, 2160]};
+      const ARR = {"t0": 0.0, "t1": 4.64, "t2": 8.44, "t3": 12.56, "t4": 16.38, "t5": 20.19, "t6": 23.46, "t7": 26.74}, LV = {"t0": 3.55, "t1": 7.35, "t2": 11.47, "t3": 15.28, "t4": 19.1, "t5": 22.37, "t6": 25.65, "t7": 29.47}, ORDER = ["t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7"], MOVE = 1.09;
+      const PUSH = 1.03; // the camera never fully rests: a slow push-in on every hold
+
+      gsap.set("#world", cam(0, 0, 1));
+      ORDER.forEach((t, i) => {
+        const [X, Y] = T[t];
+        // hold: slow push-in, decelerating to rest exactly when the move begins
+        tl.to("#world", { ...cam(X, Y, PUSH), duration: LV[t] - ARR[t], ease: "sine.out" }, ARR[t]);
+        const next = ORDER[i + 1];
+        if (next) {
+          const [NX, NY] = T[next];
+          tl.to("#world", { ...cam(NX, NY, 1), duration: MOVE, ease: E.inOut }, LV[t]);
+        }
+      });
+      // pull back to the whole world — nine tiles, one film — then into the address
+      tl.to("#world", { ...cam(0, 0, 1 / 3), x: 0, y: 0, duration: MOVE, ease: E.inOut }, 29.47);
+      tl.to("#world", { ...cam(1920, 1080, 1), duration: MOVE, ease: E.inOut }, 31.1);
+      tl.to("#world", { ...cam(1920, 1080, 1.025), duration: 36.0 - 32.19, ease: "sine.out" }, 32.19);
+
+      /* ---- the dot --------------------------------------------------------- */
+      const D = { t0: { x: 1648.00, y: 160.00 }, t1s: { x: 2058.00, y: 551.00 }, t1e: { x: 3678.00, y: 551.00 }, t2: [{ x: 3990.00, y: 315.00 }, { x: 3990.00, y: 485.00 }, { x: 3990.00, y: 655.00 }, { x: 3990.00, y: 825.00 }], t3: [{ x: 4008.00, y: 1530.00 }, { x: 4588.00, y: 1530.00 }, { x: 5098.00, y: 1530.00 }, { x: 4008.00, y: 1750.00 }, { x: 4488.00, y: 1750.00 }, { x: 4968.00, y: 1750.00 }], t4: { x: 4093.00, y: 2646.00 }, t5: { x: 3071.60, y: 2611.00 }, t6a: { x: 874.00, y: 2600.50 }, t6b: { x: 733.00, y: 2760.50 }, t7: { x: 742.94, y: 1571.20 }, t8: { x: 3030.90, y: 1718.80 } };
+      const fly = (p, t, d = MOVE, ease = "power3.inOut") => tl.to("#dot", { x: p.x, y: p.y, duration: d, ease }, t);
+      gsap.set("#dot", { x: D.t0.x, y: D.t0.y, scale: 1 });
+      const PAPER = "#F5F3EF", RED = "#F20505";
+
+      /* ================= T0 — REC / the hook ================= */
+      [["#k0", -46, -46], ["#k1", 46, -46], ["#k2", -46, 46], ["#k3", 46, 46]].forEach(([s, dx, dy]) => {
+        tl.fromTo(s, { opacity: 0, x: dx, y: dy }, { opacity: 1, x: 0, y: 0, duration: 0.8, ease: E.out }, 0.10);
+      });
+      tl.fromTo("#h0m", { opacity: 0 }, { opacity: 1, duration: 0.4 }, 0.45);
+      tl.fromTo("#rec", { opacity: 0 }, { opacity: 1, duration: 0.4 }, 0.55);
+      tl.fromTo("#dot", { opacity: 0 }, { opacity: 1, duration: 0.3 }, 0.55);
+      tl.to("#dot", { opacity: 0.3, duration: 0.55, ease: E.sine, repeat: 3, yoyo: true }, 0.90);
+      tl.to("#dot", { opacity: 1, duration: 0.3 }, 3.30);
+      tl.fromTo("#h0a", { opacity: 0, y: 34 }, { opacity: 1, y: 0, duration: 0.6, ease: E.out }, 0.82);
+      tl.fromTo("#h0b", { opacity: 0, y: 34 }, { opacity: 1, y: 0, duration: 0.6, ease: E.out }, 1.37);
+      tl.fromTo("#h0c", { opacity: 0, y: 34 }, { opacity: 1, y: 0, duration: 0.6, ease: E.out }, 1.90);
+      tl.fromTo("#h0f", { opacity: 0 }, { opacity: 1, duration: 0.5 }, 2.46);
+
+      /* ================= T1 — the process line ================= */
+      fly(D.t1s, LV.t0);
+      tl.fromTo("#h1m", { opacity: 0 }, { opacity: 1, duration: 0.4 }, ARR.t1 - 0.35);
+      // the dot draws the line: identical timing and ease on both
+      tl.fromTo("#pline", { scaleX: 0 }, { scaleX: 1, duration: 1.56, ease: E.inOut }, ARR.t1);
+      fly(D.t1e, ARR.t1, 1.56, E.inOut);
+      // each word appears as the dot passes its x (inverse of power2.inOut)
+      tl.fromTo("#pw0", { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.5, ease: E.out }, 4.680);
+      tl.fromTo("#pc0", { opacity: 0 }, { opacity: 1, duration: 0.4 }, 4.860);
+      tl.fromTo("#pw1", { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.5, ease: E.out }, 5.287);
+      tl.fromTo("#pc1", { opacity: 0 }, { opacity: 1, duration: 0.4 }, 5.467);
+      tl.fromTo("#pw2", { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.5, ease: E.out }, 5.500);
+      tl.fromTo("#pc2", { opacity: 0 }, { opacity: 1, duration: 0.4 }, 5.680);
+      tl.fromTo("#pw3", { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.5, ease: E.out }, 5.727);
+      tl.fromTo("#pc3", { opacity: 0 }, { opacity: 1, duration: 0.4 }, 5.907);
+
+      /* ================= T2 — services ================= */
+      fly(D.t2[0], LV.t1);
+      tl.fromTo("#h2m", { opacity: 0 }, { opacity: 1, duration: 0.4 }, ARR.t2 - 0.35);
+      [0, 1, 2, 3].forEach((i) => {
+        const t = ARR.t2 - 0.15 + i * 0.62;
+        if (i > 0) fly(D.t2[i], t - 0.30, 0.36, E.inOut);
+        tl.fromTo("#sr" + i, { opacity: 0, x: 30 }, { opacity: 1, x: 0, duration: 0.55, ease: E.out }, t);
+        tl.fromTo("#sc" + i, { opacity: 0 }, { opacity: 1, duration: 0.4 }, t + 0.2);
+      });
+
+      /* ================= T3 — regions ================= */
+      fly(D.t3[0], LV.t2);
+      tl.to("#dot", { backgroundColor: PAPER, duration: 0.5, ease: E.inOut }, LV.t2 + 0.5);
+      tl.fromTo("#h3m", { opacity: 0 }, { opacity: 1, duration: 0.4 }, ARR.t3 - 0.35);
+      // Row one left to right, row two right to left, and every hop is an arc:
+      // x eases across while y lifts and drops, so the pin clears the words.
+      const HOPS = [0, 1, 2, 5, 4, 3];
+      HOPS.forEach((c, i) => {
+        const t = ARR.t3 - 0.16 + i * 0.36;
+        if (i > 0) {
+          const from = D.t3[HOPS[i - 1]], to = D.t3[c], h = 0.34;
+          tl.to("#dot", { x: to.x, duration: h, ease: E.inOut }, t - 0.30);
+          tl.to("#dot", { y: Math.min(from.y, to.y) - 118, duration: h / 2, ease: "power2.out" }, t - 0.30);
+          tl.to("#dot", { y: to.y, duration: h / 2, ease: "power2.in" }, t - 0.30 + h / 2);
+        }
+        tl.fromTo("#ct" + c, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.5, ease: E.out }, t);
+      });
+      tl.fromTo("#h3f", { opacity: 0 }, { opacity: 1, duration: 0.5 }, ARR.t3 + 2.0);
+
+      /* ================= T4 — numbers ================= */
+      fly(D.t4, LV.t3);
+      tl.to("#dot", { backgroundColor: RED, duration: 0.5, ease: E.inOut }, LV.t3 + 0.5);
+      tl.fromTo("#n1", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.6, ease: E.out }, ARR.t4 - 0.40);
+      tl.fromTo("#n1c", { opacity: 0 }, { opacity: 1, duration: 0.4 }, ARR.t4 + 0.15);
+      tl.fromTo("#n2", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.6, ease: E.out }, ARR.t4 + 0.55);
+      tl.fromTo("#n2c", { opacity: 0 }, { opacity: 1, duration: 0.4 }, ARR.t4 + 0.85);
+
+      /* ================= T5 — the offer ================= */
+      fly(D.t5, LV.t4);
+      tl.to("#dot", { scale: 0.5, duration: MOVE, ease: E.inOut }, LV.t4);
+      tl.fromTo("#p1", { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: 0.55, ease: E.out }, ARR.t5 - 0.40);
+      tl.fromTo("#p2", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.6, ease: E.out }, ARR.t5 + 0.05);
+      tl.fromTo("#p3", { opacity: 0 }, { opacity: 1, duration: 0.4 }, ARR.t5 + 0.45);
+
+      /* ================= T6 — industries ================= */
+      fly(D.t6a, LV.t5);
+      tl.fromTo("#h6m", { opacity: 0 }, { opacity: 1, duration: 0.4 }, ARR.t6 - 0.35);
+      tl.fromTo("#b0", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.5, ease: E.out }, ARR.t6 - 0.40);
+      tl.fromTo("#b1", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.5, ease: E.out }, ARR.t6 - 0.05);
+      fly(D.t6b, ARR.t6 + 0.10, 0.4, E.inOut);
+      tl.fromTo("#b2", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.5, ease: E.out }, ARR.t6 + 0.30);
+      tl.fromTo("#b3", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.5, ease: E.out }, ARR.t6 + 0.65);
+
+      /* ================= T7 — clients ================= */
+      fly(D.t7, LV.t6);
+      tl.to("#dot", { backgroundColor: PAPER, scale: 0.45, duration: MOVE, ease: E.inOut }, LV.t6);
+      tl.fromTo("#h7m", { opacity: 0 }, { opacity: 1, duration: 0.4 }, ARR.t7 - 0.35);
+      tl.fromTo("#c1", { opacity: 0, y: 28 }, { opacity: 1, y: 0, duration: 0.55, ease: E.out }, ARR.t7 - 0.40);
+      tl.fromTo("#c2", { opacity: 0, y: 28 }, { opacity: 1, y: 0, duration: 0.55, ease: E.out }, ARR.t7 - 0.10);
+      [0, 1, 2, 3].forEach((i) => {
+        tl.fromTo("#cl" + i, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.45, ease: E.out }, ARR.t7 + 0.45 + i * 0.22);
+      });
+
+      /* ================= the pull-back, and the address ================= */
+      // During the pull-back the dot grows 3x so it keeps its on-screen size:
+      // the one thing in the mosaic that stays the same size is the one thing
+      // that was never cut.
+      tl.to("#dot", { scale: 1.35, backgroundColor: RED, duration: MOVE, ease: E.inOut }, 29.47);
+      fly(D.t8, 31.1, MOVE, E.inOut);
+      tl.to("#dot", { scale: 0.55, duration: MOVE, ease: E.inOut }, 31.1);
+      tl.fromTo("#logo", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6, ease: E.out }, 32.19 - 0.30);
+      // the letters bloom outward from the dot that just landed
+      tl.fromTo("#u1", { opacity: 0, x: 40 }, { opacity: 1, x: 0, duration: 0.6, ease: E.out }, 32.19 + 0.10);
+      tl.fromTo("#u2", { opacity: 0, x: -40 }, { opacity: 1, x: 0, duration: 0.6, ease: E.out }, 32.19 + 0.10);
+      tl.fromTo("#e1", { opacity: 0 }, { opacity: 1, duration: 0.45 }, 32.19 + 0.85);
+      tl.fromTo("#e2", { opacity: 0 }, { opacity: 1, duration: 0.45 }, 32.19 + 1.15);
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>
