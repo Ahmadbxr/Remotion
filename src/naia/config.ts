@@ -4,18 +4,21 @@
 
 export const NAIA = {
   // --- source clip (relative to public/) -----------------------------------
-  // Copy the original to public/naia/source.mp4 (scripts/naia/run.sh does this)
-  // and set `source` to 'naia/source.mp4'. Until then a stand-in with identical
-  // specs is used: the client's screenshot of the clip as a still frame, so the
-  // placement is checked against the real camera framing.
-  source: 'naia/standin/standin.mp4',
-  sourceIsStandIn: true,
+  // The supplied clip (HEVC) as a frame-exact H.264 working copy — Chromium
+  // cannot decode HEVC everywhere. scripts/naia/run.sh rebuilds it.
+  source: 'naia/source.mp4',
+  sourceIsStandIn: false,
 
   // --- must match the source exactly (verified by scripts/naia/probe.sh) ---
-  width: 2160,
-  height: 3840,
-  fps: 24000 / 1001,
+  // Measured on the supplied clip: 1080x1920, 24/1 fps, 378 frames, no audio.
+  width: 1080,
+  height: 1920,
+  fps: 24,
   durationInFrames: 378,
+  // the 4K master named in the brief, for NaiaOverlay4K
+  master4k: {width: 2160, height: 3840, fps: 24000 / 1001},
+  // all pixel sizes below are authored for a 2160 px wide frame and scaled
+  refWidth: 2160,
 
   // --- look -----------------------------------------------------------------
   color: '#F6EFE4', // warm white
@@ -32,9 +35,9 @@ export const NAIA = {
     textDe: 'DIE KUNST DES SUSHI', // set useDe: true if NAIA communicates in German
     useDe: false,
     // centre of the text block as a fraction of the frame. Measured on the
-    // screenshot: dark steel 0–23.2 %, board from 23.2 %. 0.175 keeps the
-    // headline on the steel, ~110 px clear of the board edge, and below the
-    // top 14 % that the Reels UI covers.
+    // clip (frames 5–53): dark steel 0–23.4 %, board below. 0.175 keeps the
+    // headline on the steel, clear of the board edge, and below the top 14 %
+    // the Reels UI covers. No hands enter this area in 0.2–2.2 s.
     cx: 0.5,
     cy: 0.175,
     size: 120, // px at 2160 wide (= 60 px on a 1080 phone frame)
@@ -52,16 +55,20 @@ export const NAIA = {
     // Real NAIA logo (PNG/SVG with transparency) relative to public/, e.g.
     // 'naia/naia-logo.png'. While null, a TEMPORARY wordmark is drawn.
     src: null as string | null,
-    cx: 0.5,
-    // board spans 23.2–80.4 % of the height; 0.60 sits on free board below the
-    // sushi line and stays above the bottom 35 % the Reels UI covers
-    cy: 0.6,
+    // Measured on the last frames: the six finished pieces sit at x 0.49–0.80,
+    // y 0.31–0.42; the board runs to 0.80. Centred under the sushi group,
+    // ~130 px below the pieces and above the bottom 35 % the Reels UI covers.
+    cx: 0.645,
+    cy: 0.53,
     widthFrac: 0.34, // logo width as a fraction of the frame width
     // the board is light cream (luminance ~0.43): warm white would read at
     // ~1.9:1, so the logo is set in warm charcoal (~6.9:1) — use a dark logo file
     color: '#2A2420',
-    inSec: 14.5,
-    fadeSec: 0.6,
+    // Hands still clear the board over exactly this area until frame 356
+    // (14.83 s); the area is clean from frame 357/358. Starting at 14.5 s would
+    // fade the logo in over the hands.
+    inSec: 14.88,
+    fadeSec: 0.45,
     risePx: 18,
     tempName: 'NAIA',
     tempSub: 'SUSHI & STEAK',

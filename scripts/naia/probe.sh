@@ -12,12 +12,12 @@ ROT=$(ffprobe -v error -select_streams v:0 -show_entries stream_side_data=rotati
 AUD=$(ffprobe -v error -select_streams a -show_entries stream=codec_name -of csv=p=0 "$SRC" | head -1)
 echo "Quelle: ${W}x${H}  fps=${R}  Frames=${N}  Rotation=${ROT:-0}  Audio=${AUD:-keins}"
 ok=1
-[ "$W" = 2160 ] && [ "$H" = 3840 ] || { echo "  ✗ Auflösung weicht ab (erwartet 2160x3840) → NAIA.width/height anpassen"; ok=0; }
-[ "$R" = "24000/1001" ] || { echo "  ✗ Bildrate weicht ab (erwartet 24000/1001) → NAIA.fps anpassen"; ok=0; }
+[ "$W" = 1080 ] && [ "$H" = 1920 ] || { echo "  ✗ Auflösung weicht ab (erwartet 1080x1920) → NAIA.width/height anpassen"; ok=0; }
+[ "$R" = "24/1" ] || { echo "  ✗ Bildrate weicht ab (erwartet 24/1) → NAIA.fps anpassen"; ok=0; }
 [ "$N" = 378 ] || { echo "  ✗ Frameanzahl weicht ab (erwartet 378) → NAIA.durationInFrames anpassen"; ok=0; }
 [ $ok = 1 ] && echo "  ✓ entspricht src/naia/config.ts"
 # reference frames: headline window and logo window
-for f in 5 12 24 46 53 300 347 348 362 377; do
+for f in 5 12 24 46 53 300 348 356 357 362 377; do
   ffmpeg -v error -y -i "$SRC" -vf "select=eq(n\,$f)" -vsync 0 -frames:v 1 "$OUT/frame_$(printf %03d $f).png"
 done
 echo "Referenzbilder: $OUT"

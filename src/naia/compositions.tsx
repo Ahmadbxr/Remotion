@@ -34,10 +34,13 @@ const common = {
   width: NAIA.width,
   height: NAIA.height,
 };
+// same animation, timed in seconds, for the 4K 23.976 master named in the brief
+const master4k = {durationInFrames: NAIA.durationInFrames, ...NAIA.master4k};
 
 export const NaiaCompositions: React.FC = () => (
   <>
     <Composition id="NaiaPreview" component={NaiaPreview} defaultProps={{guides: false}} {...common} />
     <Composition id="NaiaOverlay" component={NaiaOverlay} calculateMetadata={overlayDefaults} {...common} />
+    <Composition id="NaiaOverlay4K" component={NaiaOverlay} calculateMetadata={overlayDefaults} {...master4k} />
   </>
 );
